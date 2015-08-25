@@ -1,6 +1,19 @@
 #
 # Copyright 2014-2015 Cloudbase Solutions Srl
 #
+param(
+    # to be changed: the folder where the wim image is mounted
+    [Parameter(Mandatory=$True)]
+    [string]$MountFolder = "E:",
+    # to be changed: the local folder where the cloudbase init files are
+    [Parameter(Mandatory=$True)]
+    [string]$CloudbaseInitFilesDir = "C:\Program Files (x86)\Cloudbase Solutions",
+    # to be changed: the local file path for the PostInstall.ps1 file
+    # this script will be run as a RunSynchronousCommand from the specialize part in the Unattend.xml
+    [Parameter(Mandatory=$True)]
+    [string]$PostInstallPath = ".\UnattendResources\Postinstall.ps1"
+)
+
 $ErrorActionPreference = "Stop"
 
 function Create-RegService {
@@ -52,13 +65,6 @@ function Create-CloudbaseInitService {
 
 
 ###################BEGIN###################################################
-# to be changed: the folder where the wim image is mounted
-$mountFolder = "E:"
-# to be changed: the local folder where the cloudbase init files are
-$cloudbaseInitFilesDir = "C:\Program Files (x86)\Cloudbase Solutions"
-# to be changed: the local file path for the PostInstall.ps1 file
-# this script will be run as a RunSynchronousCommand from the specialize part in the Unattend.xml
-$postInstallPath = ".\UnattendResources\Postinstall.ps1"
 
 # copy the post install script to the mounted image
 $postInstallImagePath = "$mountFolder\UnattendResources\Postinstall.ps1"
@@ -74,10 +80,9 @@ Create-CloudbaseInitService $mountFolder $cloudbaseInitFilesDir
 
 # copy the unattend file
 # this step is not mandatory, as long as you have an apropriate Unattend.xml
-cp -force OfflineUnattend.xml "$mountFolder\Unattend.xml"
+#cp -force OfflineUnattend.xml "$mountFolder\Unattend.xml"
 
 # Add in Unattend.xml:
-
 #  <settings pass="specialize">
 #    <component name="Microsoft-Windows-Deployment" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" processorArchitecture="amd64" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 #      <RunSynchronous>
