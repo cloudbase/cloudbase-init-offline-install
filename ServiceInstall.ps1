@@ -11,10 +11,10 @@ param(
     # to be changed: the local file path for the PostInstall.ps1 file
     # this script will be run as a RunSynchronousCommand from the specialize part in the Unattend.xml
     [Parameter(Mandatory=$True)]
-    [string]$PostInstallPath = ".\UnattendResources\Postinstall.ps1"
+    [string]$PostInstallPath = ".\PostInstall.ps1",
+    [Parameter(Mandatory=$True)]
+    [string]$SetupCompletePath = ".\SetupComplete.cmd"
 )
-
-$ErrorActionPreference = "Stop"
 
 function Create-RegService {
     param(
@@ -27,7 +27,7 @@ function Create-RegService {
         @{"Name" = "DisplayName"; "Type"="REG_SZ"; "Data" = "Cloud Initialization Service"},
         @{"Name" = "ObjectName"; "Type"="REG_SZ"; "Data" = "cloudbase-init"},
         @{"Name" = "ImagePath"; "Type"="REG_EXPAND_SZ"; "Data" = "`\`"C:\Program Files (x86)\Cloudbase Solutions\Cloudbase-Init\bin\OpenStackService.exe`\`" cloudbase-init `\`"C:\Program Files (x86)\Cloudbase Solutions\Cloudbase-Init\Python27\Scripts\cloudbase-init.exe`\`" --config-file `\`"c:\Program Files (x86)\Cloudbase Solutions\Cloudbase-Init\conf\cloudbase-init.conf`\`""},
-        @{"Name" = "Start"; "Type"="REG_DWORD"; "Data" = 3},
+        @{"Name" = "Start"; "Type"="REG_DWORD"; "Data" = 2},
         @{"Name" = "Type"; "Type"="REG_DWORD"; "Data" = 16},
         @{"Name" = "ErrorControl"; "Type"="REG_DWORD"; "Data" = 0}
         )
@@ -67,31 +67,26 @@ function Create-CloudbaseInitService {
 ###################BEGIN###################################################
 
 # copy the post install script to the mounted image
-$postInstallImagePath = "$mountFolder\UnattendResources\Postinstall.ps1"
+$postInstallImagePath = "$mountFolder\UnattendResources\PostInstall.ps1"
 $postInstallImageParentPath = Split-Path -Parent $postInstallImagePath
 if (!(Test-Path $postInstallImageParentPath)) {
-    mkdir $postInstallImageParentPath
+    New-Item -Type Directory -Path $postInstallImageParentPath
 }
 # copy postinstall script
 cp -force $postInstallPath $postInstallImagePath
+
+# copy SetupComplete script
+$imageSetupCompletePath = "$MountFolder\Windows\Setup\Scripts\SetupComplete.cmd"
+$setupCompleteParentPath = Split-Path -Parent $imageSetupCompletePath
+if (!(Test-Path $setupCompleteParentPath)) {
+    New-Item -Type Directory -Path $setupCompleteParentPath
+}
+cp -force $SetupCompletePath $imageSetupCompletePath
 
 # create cloudbase-init service
 Create-CloudbaseInitService $mountFolder $cloudbaseInitFilesDir
 
 # copy the unattend file
 # this step is not mandatory, as long as you have an apropriate Unattend.xml
-#cp -force OfflineUnattend.xml "$mountFolder\Unattend.xml"
-
-# Add in Unattend.xml:
-#  <settings pass="specialize">
-#    <component name="Microsoft-Windows-Deployment" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" processorArchitecture="amd64" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-#      <RunSynchronous>
-#        <RunSynchronousCommand wcm:action="add">
-#          <Order>1</Order>
-#          <Path>cmd /c "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy RemoteSigned -File C:\UnattendResources\Postinstall.ps1"</Path>
-#          <Description>pywin postinstall script1</Description>
-#        </RunSynchronousCommand>
-#      </RunSynchronous>
-#    </component>
-#  </settings>
+# cp -force OfflineUnattend.xml "$mountFolder\Unattend.xml"
 

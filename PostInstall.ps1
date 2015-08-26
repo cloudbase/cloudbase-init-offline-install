@@ -451,8 +451,11 @@ function Create-LocalAdmin {
         [Parameter(Mandatory=$true)]
         [string]$LocalAdminPassword
     )
-
-    Add-WindowsUser $LocalAdminUsername $LocalAdminPassword
+    
+    net user /add $LocalAdminUsername $LocalAdminPassword /y
+    if ($LASTEXITCODE -ne 0) {
+        net user $LocalAdminUsername $LocalAdminPassword
+    }
 
     $administratorsGroupSID = "S-1-5-32-544"
     $isLocalAdmin = Check-Membership $LocalAdminUsername $administratorsGroupSID
@@ -463,78 +466,82 @@ function Create-LocalAdmin {
 
 }
 
-function Get-WindowsUser {
-    Param(
-        [parameter(Mandatory=$true)]
-        [string]$Username
-    )
 
-    $existentUser = Get-WmiObject -Class "Win32_Account" `
-                                  -Filter "Name = '$Username'"
-    return $existentUser
-}
-
-function Add-WindowsUser {
+function ExecuteWith-Retry {
     param(
-        [parameter(Mandatory=$true)]
-        [string]$Username,
-        [parameter(Mandatory=$true)]
-        [string]$Password
+        [ScriptBlock]$Command,
+        [int]$MaxRetryCount=10,
+        [int]$RetryInterval=3,
+        [array]$ArgumentList=@()
     )
 
-    $existentUser = Get-WindowsUser $Username
-    if ($existentUser -eq $null) {
-        $computer = [ADSI]"WinNT://$env:computername"
-        $user = $computer.Create("User", $Username)
-        $user.SetPassword($Password)
-        $user.SetInfo()
-        $user.FullName = $Username
-        $user.SetInfo()
-        # UserFlags = Logon script | Normal user | No pass expiration
-        $user.UserFlags = 1 + 512 + 65536
-        $user.SetInfo()
-    } else {
-        $computername = hostname.exe
-        $user = [ADSI] "WinNT://$computerName/$Username,User"
-        $user.SetPassword($Password)
+    $currentErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+
+    $retryCount = 0
+    while ($true) {
+        try {
+            $res = Invoke-Command -ScriptBlock $Command `
+                     -ArgumentList $ArgumentList
+            $ErrorActionPreference = $currentErrorActionPreference
+            return $res
+        } catch [System.Exception] {
+            $retryCount++
+            if ($retryCount -gt $MaxRetryCount) {
+                $ErrorActionPreference = $currentErrorActionPreference
+                throw $_.Exception
+            } else {
+                Write-Error $_.Exception
+                Start-Sleep $RetryInterval
+            }
+        }
     }
 }
 
-###################BEGIN###################################################
-$cloudbasePythonFolder = "C:\Program Files (x86)\Cloudbase Solutions\Cloudbase-Init\Python27"
-$username = "cloudbase-init"
-$serviceName = "cloudbase-init"
-$privilege = "SeServiceLogonRight"
-$password = Generate-StrongPassword
-
-# Add user for service
-Create-LocalAdmin $username $password
-
-#Add user logon as a service right
-if (![PSCarbon.Lsa]::GetPrivileges($Username).Contains($privilege)) {
-    [PSCarbon.Lsa]::GrantPrivileges($UserName, $privilege)
+function Write-Log {
+    param($message)
+    Write-Host $message
 }
 
-# Recreate pywin32
-& "$cloudbasePythonFolder\python.exe" "$cloudbasePythonFolder\Scripts\pywin32_postinstall.py" -install -silent -quiet
-if ($LASTEXITCODE -ne 0) {
-    throw $error[0]
-}
 
-# Update executables
-& "$cloudbasePythonFolder\python.exe" -c "import os; import sys; from pip._vendor.distlib import scripts; specs = 'cloudbase-init = cloudbaseinit.shell:main'; scripts_path = os.path.join(os.path.dirname(sys.executable), 'Scripts'); m = scripts.ScriptMaker(None, scripts_path); m.executable = sys.executable; m.make(specs)"
-if ($LASTEXITCODE -ne 0) {
-    throw $error[0]
-}
+ExecuteWith-Retry {
+    ###################BEGIN###################################################
+    $cloudbasePythonFolder = "C:\Program Files (x86)\Cloudbase Solutions\Cloudbase-Init\Python27"
+    $username = "cloudbase-init"
+    $serviceName = "cloudbase-init"
+    $privilege = "SeServiceLogonRight"
+    $password = Generate-StrongPassword
+    # Add user for service
+    Create-LocalAdmin $username $password
+    Write-Log "Created local admin"
+    #Add user logon as a service right
+    if (![PSCarbon.Lsa]::GetPrivileges($Username).Contains($privilege)) {
+        [PSCarbon.Lsa]::GrantPrivileges($UserName, $privilege)
+    }
+    Write-Log "Added local admin logon as a service right"
+    # Recreate pywin32
+    & "$cloudbasePythonFolder\python.exe" "$cloudbasePythonFolder\Scripts\pywin32_postinstall.py" -install -silent -quiet
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log $error[0]
+        throw $error[0]
+    }
+    Write-Log "Recreated pywin32"
+    # Update executables
+    & "$cloudbasePythonFolder\python.exe" -c "import os; import sys; from pip._vendor.distlib import scripts; specs = 'cloudbase-init = cloudbaseinit.shell:main'; scripts_path = os.path.join(os.path.dirname(sys.executable), 'Scripts'); m = scripts.ScriptMaker(None, scripts_path); m.executable = sys.executable; m.make(specs)"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log $error[0]
+        throw $error[0]
+    }
+    Write-Log "Recreated pywin32"
 
-# set service username and password
-sc.exe config $serviceName obj=".\$username" password="$password"
-if ($LASTEXITCODE -ne 0) {
-    throw $error[0]
-}
+    # set service username and password
+    sc.exe config $serviceName obj=".\$username" password="$password"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log $error[0]
+        throw $error[0]
+    }
+    Write-Log "Set service user andpassword"
+    
+    Restart-Service $serviceName
 
-# set service startup type
-sc.exe config $serviceName start="auto"
-if ($LASTEXITCODE -ne 0) {
-    throw $error[0]
-}
+} -MaxRetryCount 3 -RetryInterval 10
