@@ -13,8 +13,12 @@ param(
     [Parameter(Mandatory=$True)]
     [string]$PostInstallPath = ".\PostInstall.ps1",
     [Parameter(Mandatory=$True)]
-    [string]$SetupCompletePath = ".\SetupComplete.cmd"
+    [string]$SetupCompletePath = ".\SetupComplete.cmd",
+    [Parameter(Mandatory=$True)]
+    [string]$UnattendXmlPath = ".\Unattend.xml"
 )
+
+$ErrorActionPreference = "Stop"
 
 function Create-RegService {
     param(
@@ -88,5 +92,5 @@ Create-CloudbaseInitService $mountFolder $cloudbaseInitFilesDir
 
 # copy the unattend file
 # this step is not mandatory, as long as you have an apropriate Unattend.xml
-# cp -force OfflineUnattend.xml "$mountFolder\Unattend.xml"
+cp -force $UnattendXmlPath "$mountFolder\Unattend.xml"
 
