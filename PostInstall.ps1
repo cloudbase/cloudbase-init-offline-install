@@ -519,6 +519,10 @@ ExecuteWith-Retry {
         [PSCarbon.Lsa]::GrantPrivileges($UserName, $privilege)
     }
     Write-Log "Added local admin logon as a service right"
+
+    # Hide cloudbase-init user at the logon screen
+    REG ADD "HKLM\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\SpecialAccounts\UserList" /f /t REG_DWORD /d 0 /v $username
+
     # Recreate pywin32
     & "$cloudbasePythonFolder\python.exe" "$cloudbasePythonFolder\Scripts\pywin32_postinstall.py" -install -silent -quiet
     if ($LASTEXITCODE -ne 0) {
