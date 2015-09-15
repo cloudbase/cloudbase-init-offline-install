@@ -40,7 +40,7 @@ function Create-RegService {
         @{"Name" = "DisplayName"; "Type"="REG_SZ"; "Data" = "Cloud Initialization Service"},
         @{"Name" = "ObjectName"; "Type"="REG_SZ"; "Data" = $serviceUsername},
         @{"Name" = "ImagePath"; "Type"="REG_EXPAND_SZ"; "Data" =  ($cloudbaseInitOpenstackService + " cloudbase-init " + $cloudbaseInitBinary + " --config-file " + $cloudbaseInitConf) },
-        @{"Name" = "Start"; "Type"="REG_DWORD"; "Data" = 2},
+        @{"Name" = "Start"; "Type"="REG_DWORD"; "Data" = 3},
         @{"Name" = "Type"; "Type"="REG_DWORD"; "Data" = 16},
         @{"Name" = "ErrorControl"; "Type"="REG_DWORD"; "Data" = 0}
         )

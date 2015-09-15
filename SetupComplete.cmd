@@ -1,1 +1,1 @@
-cmd /c "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy RemoteSigned -File C:\UnattendResources\PostInstall.ps1"
+powershell.exe C:\UnattendResources\PostInstall.ps1 >>%SYSTEMDRIVE%\SetupComplete.log 2>>%SYSTEMDRIVE%\SetupComplete.error
