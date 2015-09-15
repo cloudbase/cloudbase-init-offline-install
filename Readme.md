@@ -8,7 +8,7 @@ Step 2:
 
     Run ServiceInstall.ps1 with the required parameters. The Windows Image must be mounted before trying to run the script.
     
-    Example: & .\ServiceInstall.ps1 -MountFolder "E:" -CloudbaseInitFilesDir ".\Cloudbase Solutions" -PostInstallPath  ".\PostInstall.ps1" -SetupCompletePath ".\SetupComplete.cmd" -UnattendXmlPath ".\Unattend.xml"
+    Example: & .\ServiceInstall.ps1 -MountFolder "E:" -CloudbaseInitFilesDir ".\Cloudbase Solutions" -PostInstallPath  ".\PostInstall.ps1" -SetupCompletePath ".\SetupComplete.cmd" -UnattendXmlPath ".\Unattend.xml" -ServiceUsername "cloudbase-init"
 
     The script will:
         

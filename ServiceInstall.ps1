@@ -15,7 +15,9 @@ param(
     [Parameter(Mandatory=$True)]
     [string]$SetupCompletePath = ".\SetupComplete.cmd",
     [Parameter(Mandatory=$True)]
-    [string]$UnattendXmlPath = ".\Unattend.xml"
+    [string]$UnattendXmlPath = ".\Unattend.xml",
+    [Parameter(Mandatory=$False)]
+    [string]$ServiceUsername = "cloudbase-init"
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,7 +26,8 @@ function Create-RegService {
     param(
         $serviceName,
         $regKeyRoot,
-        $cloudbaseInitProgramFiles)
+        $cloudbaseInitProgramFiles,
+        $serviceUsername)
 
     $cloudbaseInitInstallFolder = "`\`"C:" + $cloudbaseInitProgramFiles + "\Cloudbase-Init\"
     $cloudbaseInitOpenstackService = $cloudbaseInitInstallFolder + "bin\OpenStackService.exe`\`""
@@ -35,7 +38,7 @@ function Create-RegService {
         @{"Name" = "DependOnService"; "Type"="REG_MULTI_SZ"; "Data" = "Winmgmt"},
         @{"Name" = "Description"; "Type"="REG_SZ"; "Data" = "Service wrapper for $serviceName"},
         @{"Name" = "DisplayName"; "Type"="REG_SZ"; "Data" = "Cloud Initialization Service"},
-        @{"Name" = "ObjectName"; "Type"="REG_SZ"; "Data" = "cloudbase-init"},
+        @{"Name" = "ObjectName"; "Type"="REG_SZ"; "Data" = $serviceUsername},
         @{"Name" = "ImagePath"; "Type"="REG_EXPAND_SZ"; "Data" =  ($cloudbaseInitOpenstackService + " cloudbase-init " + $cloudbaseInitBinary + " --config-file " + $cloudbaseInitConf) },
         @{"Name" = "Start"; "Type"="REG_DWORD"; "Data" = 2},
         @{"Name" = "Type"; "Type"="REG_DWORD"; "Data" = 16},
@@ -57,7 +60,8 @@ function Create-RegService {
 
 function Create-CloudbaseInitService {
     param($mountFolder,
-        $cloudbaseInitFilesDir)
+        $cloudbaseInitFilesDir,
+        $serviceUsername)
 
     $cloudbaseInitProgramFiles = "\Program Files\Cloudbase Solutions"
     $registryName = "hivename"
@@ -70,8 +74,8 @@ function Create-CloudbaseInitService {
 
     # create the cloudbase-init service using registry key hive from the mounted image
     reg load "HKLM\$registryName" "$mountFolder\windows\system32\config\system"
-    Create-RegService $serviceName $regKeyRoot1 $cloudbaseInitProgramFiles
-    Create-RegService $serviceName $regKeyRoot2 $cloudbaseInitProgramFiles
+    Create-RegService $serviceName $regKeyRoot1 $cloudbaseInitProgramFiles $serviceUsername
+    Create-RegService $serviceName $regKeyRoot2 $cloudbaseInitProgramFiles $serviceUsername
     reg unload "HKLM\$registryName"
 }
 
@@ -95,7 +99,7 @@ if (!(Test-Path $setupCompleteParentPath)) {
 cp -force $SetupCompletePath $imageSetupCompletePath
 
 # create cloudbase-init service
-Create-CloudbaseInitService $mountFolder $cloudbaseInitFilesDir
+Create-CloudbaseInitService $mountFolder $cloudbaseInitFilesDir $ServiceUsername
 
 # copy the unattend file
 # this step is not mandatory, as long as you have an apropriate Unattend.xml
