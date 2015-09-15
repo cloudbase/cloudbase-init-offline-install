@@ -42,14 +42,14 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# set service startup type
+# Create cloudbase-init service
 & sc.exe create "cloudbase-init" binPath= "\"$cloudbaseInitExePath\" --config-file \"$cloudbaseInitConfigFile\"" DisplayName= "Cloudbase-Init" start= auto
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to set service auto start"
     exit 1
 }
 
-#run cloudbase-init unattend
+# Run cloudbase-init with "unattend" configuration
 & $cloudbaseInitExePath --config-file $cloudbaseInitUnattendConfigFile
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to run cloudbase-init unattend"
