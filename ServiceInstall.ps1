@@ -23,14 +23,20 @@ $ErrorActionPreference = "Stop"
 function Create-RegService {
     param(
         $serviceName,
-        $regKeyRoot)
+        $regKeyRoot,
+        $cloudbaseInitProgramFiles)
+
+    $cloudbaseInitInstallFolder = "`\`"C:" + $cloudbaseInitProgramFiles + "\Cloudbase-Init\"
+    $cloudbaseInitOpenstackService = $cloudbaseInitInstallFolder + "bin\OpenStackService.exe`\`""
+    $cloudbaseInitBinary = $cloudbaseInitInstallFolder + "Python27\Scripts\cloudbase-init.exe`\`""
+    $cloudbaseInitConf = $cloudbaseInitInstallFolder + "conf\cloudbase-init.conf`\`""
 
     $properties = @(
         @{"Name" = "DependOnService"; "Type"="REG_MULTI_SZ"; "Data" = "Winmgmt"},
         @{"Name" = "Description"; "Type"="REG_SZ"; "Data" = "Service wrapper for $serviceName"},
         @{"Name" = "DisplayName"; "Type"="REG_SZ"; "Data" = "Cloud Initialization Service"},
         @{"Name" = "ObjectName"; "Type"="REG_SZ"; "Data" = "cloudbase-init"},
-        @{"Name" = "ImagePath"; "Type"="REG_EXPAND_SZ"; "Data" = "`\`"C:\Program Files (x86)\Cloudbase Solutions\Cloudbase-Init\bin\OpenStackService.exe`\`" cloudbase-init `\`"C:\Program Files (x86)\Cloudbase Solutions\Cloudbase-Init\Python27\Scripts\cloudbase-init.exe`\`" --config-file `\`"c:\Program Files (x86)\Cloudbase Solutions\Cloudbase-Init\conf\cloudbase-init.conf`\`""},
+        @{"Name" = "ImagePath"; "Type"="REG_EXPAND_SZ"; "Data" =  ($cloudbaseInitOpenstackService + " cloudbase-init " + $cloudbaseInitBinary + " --config-file " + $cloudbaseInitConf) },
         @{"Name" = "Start"; "Type"="REG_DWORD"; "Data" = 2},
         @{"Name" = "Type"; "Type"="REG_DWORD"; "Data" = 16},
         @{"Name" = "ErrorControl"; "Type"="REG_DWORD"; "Data" = 0}
@@ -52,21 +58,22 @@ function Create-RegService {
 function Create-CloudbaseInitService {
     param($mountFolder,
         $cloudbaseInitFilesDir)
+
+    $cloudbaseInitProgramFiles = "\Program Files\Cloudbase Solutions"
     $registryName = "hivename"
     $regKeyRoot1 = "HKLM\$registryName\ControlSet001\Services"
     $regKeyRoot2 = "HKLM\$registryName\ControlSet002\Services"
     $serviceName = "cloudbase-init"
 
     #Copy cloudbase-init files to the mounted image
-    Copy-Item -Recurse  $cloudbaseInitFilesDir "$mountFolder\Program Files (x86)\Cloudbase Solutions"
+    Copy-Item -Recurse  $cloudbaseInitFilesDir ("$mountFolder" + $cloudbaseInitProgramFiles)
 
     # create the cloudbase-init service using registry key hive from the mounted image
     reg load "HKLM\$registryName" "$mountFolder\windows\system32\config\system"
-    Create-RegService $serviceName $regKeyRoot1
-    Create-RegService $serviceName $regKeyRoot2
+    Create-RegService $serviceName $regKeyRoot1 $cloudbaseInitProgramFiles
+    Create-RegService $serviceName $regKeyRoot2 $cloudbaseInitProgramFiles
     reg unload "HKLM\$registryName"
 }
-
 
 ###################BEGIN###################################################
 
