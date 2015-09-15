@@ -1,1 +1,1 @@
-powershell.exe C:\UnattendResources\PostInstall.ps1 >>%SYSTEMDRIVE%\SetupComplete.log 2>>%SYSTEMDRIVE%\SetupComplete.error
+powershell.exe PostInstall.ps1 > SetupComplete.log 2> SetupComplete.error
