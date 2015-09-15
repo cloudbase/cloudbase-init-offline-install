@@ -17,12 +17,28 @@ $errorLogFile = "$Env:SystemDrive\cloudbase-init-setup.error"
 
 # Recreate pywin32
 & "$cloudbasePythonFolder\python.exe" "$cloudbasePythonFolder\Scripts\pywin32_postinstall.py" -install -silent -quiet >>$logFile 2>>$errorLogFile
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to run pywin32_postinstall.py"
+    exit 1
+}
 
 # Update executables
 & "$cloudbasePythonFolder\python.exe" -c "import os; import sys; from pip._vendor.distlib import scripts; specs = 'cloudbase-init = cloudbaseinit.shell:main'; scripts_path = os.path.join(os.path.dirname(sys.executable), 'Scripts'); m = scripts.ScriptMaker(None, scripts_path); m.executable = sys.executable; m.make(specs)" >>$logFile 2>>$errorLogFile
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to update cloudbase init executables"
+    exit 1
+}
 
 # set service startup type
 sc.exe config $serviceName start= "auto"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to set service auto start"
+    exit 1
+}
 
 #run cloudbase-init unattend
 & $cloudbaseExe --config-file $cloudbaseUnattendConf
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to run cloudbase init unattend"
+    exit 1
+}
