@@ -17,12 +17,13 @@ limitations under the License.
 param(
     [Parameter(Mandatory=$True)]
     [string]$VHDPath,
-    [string]$cloudbaseInitZipPath = "CloudbaseInitSetup_x64.zip"
+    [string]$CloudbaseInitZipPath = "CloudbaseInitSetup_x64.zip"
 )
 
 $ErrorActionPreference = "Stop"
 
-$scriptPath = split-path -parent $MyInvocation.MyCommand.Definition
+$CloudbaseInitZipPath = Resolve-Path $CloudbaseInitZipPath
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 if(!(Test-Path -PathType Leaf $cloudbaseInitZipPath))
 {
@@ -32,9 +33,10 @@ if(!(Test-Path -PathType Leaf $cloudbaseInitZipPath))
 $disk = Mount-Vhd $VHDPath -Passthru
 try
 {
-    $driveLetter = (Get-Disk -Number $d.DiskNumber | Get-Partition).DriveLetter
+    $driveLetter = (Get-Disk -Number $disk.DiskNumber | Get-Partition).DriveLetter
 
-    $cloudbaseInitBaseDir = "${driveLetter}:\Cloudbase-Init"
+    $cloudbaseInitDir = "Cloudbase-Init"
+    $cloudbaseInitBaseDir = Join-Path "${driveLetter}:\" $cloudbaseInitDir
     if(Test-Path $cloudbaseInitBaseDir) {
         rmdir -Recurse -Force $cloudbaseInitBaseDir
     }
@@ -54,8 +56,10 @@ try
 
     $cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "Config"
     mkdir $cloudbaseInitConfigDir
-    $cloudbaseInitLogDir = Join-Path $cloudbaseInitBaseDir "Log"
-    mkdir $cloudbaseInitLogDir
+    $cloudbaseInitRuntimeBaseDir = Join-Path "C:\" $cloudbaseInitDir
+    $cloudbaseInitLogDir = Join-Path $cloudbaseInitRuntimeBaseDir "Log"
+    $cloudbaseInitVHDLogDir = Join-Path $cloudbaseInitBaseDir "Log"
+    mkdir $cloudbaseInitVHDLogDir
 
     . (Join-Path $scriptPath "ini.ps1")
 
@@ -66,7 +70,7 @@ try
 
     $cloudbaseInitConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init.conf"
     $cloudbaseInitUnattendConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init-unattend.conf"
-    $cloudbaseInitBinDir = Join-Path $cloudbaseInitBaseDir "Bin"
+    $cloudbaseInitBinDir = Join-Path $cloudbaseInitRuntimeBaseDir "Bin"
 
     $loggingSerialPortSettings = "COM1,115200,N,8"
 
@@ -94,7 +98,7 @@ try
     Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "plugins" -Value  "cloudbaseinit.plugins.common.mtu.MTUPlugin,cloudbaseinit.plugins.common.sethostname.SetHostNamePlugin"
     Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "stop_service_on_exit" -Value $false
     Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "check_latest_version" -Value $false
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logfile" -Value "cloudbase-init-unattend.log"
+    Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "logfile" -Value "cloudbase-init-unattend.log"
 
     copy -Force (Join-Path $scriptPath "SetupComplete.cmd") $setupScriptsDir
     copy -Force (Join-Path $scriptPath "PostInstall.ps1") $setupScriptsDir
