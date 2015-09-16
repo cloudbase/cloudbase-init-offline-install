@@ -5,7 +5,9 @@ Building a Nano Server image for OpenStack consists in 2 main steps:
 * Preparing a NanoServer VHD image
 * Downloading and installing Cloudbase-Init in the offline VHD image
 
-# NanoServer OpenStack build automation:
+#### NanoServer OpenStack build automation
+
+A full example is available in _Build.ps1_.
 
     $targetPath = "C:\VHDs\Nano"
     $isoPath = "C:\ISO\Windows_Server_2016_Technical_Preview_3.ISO"
