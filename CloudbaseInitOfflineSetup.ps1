@@ -112,3 +112,6 @@ finally
 {
     Dismount-VHD -DiskNumber $disk.DiskNumber
 }
+
+Write-Host
+Write-Host "Cloudbase-Init offline setup done!"

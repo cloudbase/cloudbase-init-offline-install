@@ -34,9 +34,10 @@ try
     try
     {
         . ".\new-nanoserverimage.ps1"
-        New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
+        $out = New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
         -AdministratorPassword $AdministratorPassword -TargetPath $TargetPath `
         -GuestDrivers -ReverseForwarders
+        Write-Host $out
     }
     finally
     {
@@ -47,3 +48,24 @@ finally
 {
     Dismount-DiskImage $IsoPath
 }
+
+# .\new-nanoserverimage.ps1 dos not have a VHD size attribute
+$vhdPath =  Join-Path $TargetPath "$(Split-Path -Leaf $TargetPath).vhd"
+$vhdxPath = "${vhdPath}x"
+Convert-VHD $vhdPath $vhdxPath
+del $vhdPath
+
+$disk = Mount-Vhd $vhdxPath -Passthru
+try
+{
+    $part = $disk | Get-Partition
+    $sizeMin = ($part |  Get-PartitionSupportedSize).SizeMin
+    $part | Resize-Partition -Size $sizeMin
+}
+finally
+{
+    Dismount-VHD -DiskNumber $disk.DiskNumber
+}
+
+Resize-VHD $vhdxPath -ToMinimumSize
+return $vhdxPath
