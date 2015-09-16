@@ -45,9 +45,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Create cloudbase-init service
-& sc.exe create "cloudbase-init" binPath= ('\"'+ $cloudbaseInitServiceWrapper + '\" cloudbase-init \"' + $cloudbaseInitExePath + '\" --config-file \"' + $cloudbaseInitConfigFile + '\"') DisplayName= "Cloudbase-Init" start= auto
+& sc.exe create "cloudbase-init" binPath= "\""${cloudbaseInitServiceWrapper} \"" cloudbase-init \""${cloudbaseInitExePath}\"" --config-file \""${cloudbaseInitConfigFile}\""" DisplayName= "Cloudbase-Init" start= auto
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to create service"
+    Write-Error "Failed to create cloudbase-init service"
     exit 1
 }
 

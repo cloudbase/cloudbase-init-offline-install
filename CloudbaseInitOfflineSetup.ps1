@@ -22,12 +22,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$CloudbaseInitZipPath = Resolve-Path $CloudbaseInitZipPath
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
-if(!(Test-Path -PathType Leaf $cloudbaseInitZipPath))
+$CloudbaseInitZipPath = Resolve-Path $CloudbaseInitZipPath
+if(!(Test-Path -PathType Leaf $CloudbaseInitZipPath))
 {
-    throw "Zip file ""$cloudbaseInitZipPath"" does not exist"
+    throw "Zip file ""$CloudbaseInitZipPath"" does not exist"
 }
 
 $disk = Mount-Vhd $VHDPath -Passthru
@@ -46,8 +46,8 @@ try
     try
     {
         $7z = Join-Path $scriptPath "7z.exe"
-        & $7z x $cloudbaseInitZipPath -y
-        if($LastExitCode) { throw "7z.exe failed to unzip: $cloudbaseInitZipPath"}
+        & $7z x $CloudbaseInitZipPath -y
+        if($LastExitCode) { throw "7z.exe failed to unzip: $CloudbaseInitZipPath"}
     }
     finally
     {
@@ -56,10 +56,8 @@ try
 
     $cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "Config"
     mkdir $cloudbaseInitConfigDir
-    $cloudbaseInitRuntimeBaseDir = Join-Path "C:\" $cloudbaseInitDir
-    $cloudbaseInitLogDir = Join-Path $cloudbaseInitRuntimeBaseDir "Log"
-    $cloudbaseInitVHDLogDir = Join-Path $cloudbaseInitBaseDir "Log"
-    mkdir $cloudbaseInitVHDLogDir
+    $cloudbaseInitLogDir = Join-Path $cloudbaseInitBaseDir "Log"
+    mkdir $cloudbaseInitLogDir
 
     . (Join-Path $scriptPath "ini.ps1")
 
@@ -70,7 +68,10 @@ try
 
     $cloudbaseInitConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init.conf"
     $cloudbaseInitUnattendConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init-unattend.conf"
-    $cloudbaseInitBinDir = Join-Path $cloudbaseInitRuntimeBaseDir "Bin"
+
+    $cloudbaseInitRuntimeBaseDir = Join-Path "C:\" $cloudbaseInitDir
+    $cloudbaseInitRuntimeLogDir = Join-Path $cloudbaseInitRuntimeBaseDir "Log"
+    $cloudbaseInitRuntimeBinDir = Join-Path $cloudbaseInitRuntimeBaseDir "Bin"
 
     $loggingSerialPortSettings = "COM1,115200,N,8"
 
@@ -81,9 +82,9 @@ try
     # Nano does not have DVD drivers
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_cdrom" -Value $false
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_vfat" -Value $true
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "bsdtar_path" -Value (join-Path $cloudbaseInitBinDir "bsdtar.exe")
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "mtools_path" -Value $cloudbaseInitBinDir
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logdir" -Value $cloudbaseInitLogDir
+    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "bsdtar_path" -Value (join-Path $cloudbaseInitRuntimeBinDir "bsdtar.exe")
+    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "mtools_path" -Value $cloudbaseInitRuntimeBinDir
+    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logdir" -Value $cloudbaseInitRuntimeLogDir
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logfile" -Value "cloudbase-init.log"
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "default_log_levels" -Value "comtypes=INFO,suds=INFO,iso8601=WARN,requests=WARN"
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logging_serial_port_settings" -Value $loggingSerialPortSettings

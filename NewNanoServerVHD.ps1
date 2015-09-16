@@ -16,17 +16,17 @@ limitations under the License.
 
 Param(
     [Parameter(Mandatory=$True)]
-    [string]$isoPath,
+    [string]$IsoPath,
     [Parameter(Mandatory=$True)]
-    [string]$targetPath,
+    [string]$TargetPath,
     [Parameter(Mandatory=$True)]
-    [Security.SecureString]$administratorPassword,
-    [string]$nanoServerDir = "C:\NanoServer"
+    [Security.SecureString]$AdministratorPassword,
+    [string]$NanoServerDir = "C:\NanoServer"
 )
 
 $ErrorActionPreference = "Stop"
 
-$isoMountDrive = (Mount-DiskImage $isoPath -PassThru | Get-Volume).DriveLetter
+$isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
 
 try
 {
@@ -34,8 +34,8 @@ try
     try
     {
         . ".\new-nanoserverimage.ps1"
-        New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $nanoServerDir `
-        -AdministratorPassword $administratorPassword -TargetPath $targetPath `
+        New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
+        -AdministratorPassword $AdministratorPassword -TargetPath $TargetPath `
         -GuestDrivers -ReverseForwarders
     }
     finally
@@ -45,5 +45,5 @@ try
 }
 finally
 {
-    Dismount-DiskImage $isoPath
+    Dismount-DiskImage $IsoPath
 }
