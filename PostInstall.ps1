@@ -21,6 +21,8 @@ import-module Microsoft.PowerShell.Utility
 $cloudbaseInitBaseDir = "$Env:SystemDrive\Cloudbase-Init"
 $cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "Config"
 $cloudbaseInitLogDir = Join-Path $cloudbaseInitBaseDir "Log"
+$cloudbaseInitBinDir = Join-Path $cloudbaseInitBaseDir "Bin"
+$cloudbaseInitServiceWrapper = Join-Path $cloudbaseInitBinDir "OpenStackService.exe"
 $cloudbaseInitPythonDir = Join-Path $cloudbaseInitBaseDir "Python"
 $cloudbaseInitPythonScriptsDir = Join-Path $cloudbaseInitPythonDir "Scripts"
 $cloudbaseInitConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init.conf"
@@ -43,9 +45,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Create cloudbase-init service
-& sc.exe create "cloudbase-init" binPath= "\"$cloudbaseInitExePath\" --config-file \"$cloudbaseInitConfigFile\"" DisplayName= "Cloudbase-Init" start= auto
+& sc.exe create "cloudbase-init" binPath= ('\"'+ $cloudbaseInitServiceWrapper + '\" cloudbase-init \"' + $cloudbaseInitExePath + '\" --config-file \"' + $cloudbaseInitConfigFile + '\"') DisplayName= "Cloudbase-Init" start= auto
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to set service auto start"
+    Write-Error "Failed to create service"
     exit 1
 }
 

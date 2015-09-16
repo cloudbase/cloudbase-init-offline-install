@@ -36,7 +36,7 @@ try
         . ".\new-nanoserverimage.ps1"
         New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $nanoServerDir `
         -AdministratorPassword $administratorPassword -TargetPath $targetPath `
-        –GuestDrivers -ReverseForwarders
+        -GuestDrivers -ReverseForwarders
     }
     finally
     {
