@@ -17,7 +17,8 @@ limitations under the License.
 param(
     [Parameter(Mandatory=$True)]
     [string]$VHDPath,
-    [string]$CloudbaseInitZipPath = "CloudbaseInitSetup_x64.zip"
+    [string]$CloudbaseInitZipPath = "CloudbaseInitSetup_x64.zip",
+    [string]$LoggingCOMPort = "COM1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,8 +74,6 @@ try
     $cloudbaseInitRuntimeLogDir = Join-Path $cloudbaseInitRuntimeBaseDir "Log"
     $cloudbaseInitRuntimeBinDir = Join-Path $cloudbaseInitRuntimeBaseDir "Bin"
 
-    $loggingSerialPortSettings = "COM1,115200,N,8"
-
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "username" -Value "Admin"
     # Todo: builtin group names must be retrieved from SID
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "groups" -Value "Administrators"
@@ -87,11 +86,15 @@ try
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logdir" -Value $cloudbaseInitRuntimeLogDir
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logfile" -Value "cloudbase-init.log"
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "default_log_levels" -Value "comtypes=INFO,suds=INFO,iso8601=WARN,requests=WARN"
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logging_serial_port_settings" -Value $loggingSerialPortSettings
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "mtu_use_dhcp_config" -Value $true
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "ntp_use_dhcp_config" -Value $true
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "allow_reboot" -Value $true
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "debug" -Value $true
+
+    if($LoggingCOMPort) {
+        $loggingSerialPortSettings = "${LoggingCOMPort},115200,N,8"
+        Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logging_serial_port_settings" -Value $loggingSerialPortSettings
+    }
 
     copy $cloudbaseInitConfigFile $cloudbaseInitUnattendConfigFile
 
