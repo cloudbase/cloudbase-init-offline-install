@@ -77,6 +77,7 @@ try
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "username" -Value "Admin"
     # Todo: builtin group names must be retrieved from SID
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "groups" -Value "Administrators"
+    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "inject_user_password" -Value $true
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_raw_hhd" -Value $true
     # Nano does not have DVD drivers
     Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_cdrom" -Value $false
