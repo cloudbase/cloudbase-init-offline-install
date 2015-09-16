@@ -15,3 +15,6 @@ $cloudbaseInitZipPath = Join-Path $pwd CloudbaseInitSetup_x64.zip
 Start-BitsTransfer -Source "https://www.cloudbase.it/downloads/CloudbaseInitSetup_x64.zip" -Destination $cloudbaseInitZipPath
 
 .\CloudbaseInitOfflineSetup.ps1 -VhdPath $vhdxPath -CloudbaseInitZipPath $cloudbaseInitZipPath
+
+Write-Host
+Write-Host "Your OpenStack Nano Server image is ready: $vhdxPath"
