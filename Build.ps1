@@ -9,7 +9,8 @@ if(Test-Path $targetPath)
     del -recurse $targetPath
 }
 
-$vhdxPath = .\NewNanoServerVHD.ps1 -IsoPath $isoPath -TargetPath $targetPath -AdministratorPassword $password
+.\NewNanoServerVHD.ps1 -IsoPath $isoPath -TargetPath $targetPath -AdministratorPassword $password -Platform "Hyper-V"
+$vhdxPath =  Join-Path $TargetPath "$(Split-Path -Leaf $TargetPath).vhdx"
 
 $cloudbaseInitZipPath = Join-Path $pwd CloudbaseInitSetup_x64.zip
 Start-BitsTransfer -Source "https://www.cloudbase.it/downloads/CloudbaseInitSetup_x64.zip" -Destination $cloudbaseInitZipPath

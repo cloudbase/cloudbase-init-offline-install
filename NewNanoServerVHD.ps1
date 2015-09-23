@@ -21,10 +21,24 @@ Param(
     [string]$TargetPath,
     [Parameter(Mandatory=$True)]
     [Security.SecureString]$AdministratorPassword,
-    [string]$NanoServerDir = "C:\NanoServer"
+    [ValidateSet("Hyper-V", "VMware", "BareMetal")]
+    [string]$Platform = "Hyper-V",
+    [switch]$Compute,
+    [switch]$Storage,
+    [string[]]$ExtraDriversPaths = @(),
+    [string]$VMWareDriversBasePath = "$Env:CommonProgramFiles\VMware\Drivers",
+    [string]$NanoServerDir = "${env:SystemDrive}\NanoServer"
 )
 
 $ErrorActionPreference = "Stop"
+
+if(Test-Path $TargetPath)
+{
+    throw "The target directory ""$TargetPath"" already exists, please remove it before running this script"
+}
+
+$addGuestDrivers = ($Platform -eq "Hyper-V")
+$addOEMDrivers = ($Platform -eq "BareMetal")
 
 $isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
 
@@ -34,10 +48,10 @@ try
     try
     {
         . ".\new-nanoserverimage.ps1"
-        $out = New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
+        New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
         -AdministratorPassword $AdministratorPassword -TargetPath $TargetPath `
-        -GuestDrivers -ReverseForwarders
-        Write-Host $out
+        -GuestDrivers:$addGuestDrivers -OEMDrivers:$addOEMDrivers `
+        -ReverseForwarders -Compute:$Compute -Storage:$Storage
     }
     finally
     {
@@ -49,8 +63,49 @@ finally
     Dismount-DiskImage $IsoPath
 }
 
-# .\new-nanoserverimage.ps1 dos not have a VHD size attribute
+if($Platform -eq "VMware")
+{
+    if(!(Test-Path -PathType Container $VMWareDriversBasePath))
+    {
+        throw "VMware drivers path not found: $VMWareDriversBasePath"
+    }
+
+    $ExtraDriversPaths += Join-Path $VMWareDriversBasePath "pvscsi"
+    $ExtraDriversPaths += Join-Path $VMWareDriversBasePath "vmxnet3"
+    $ExtraDriversPaths += Join-Path $VMWareDriversBasePath "vmci\device"
+}
+
 $vhdPath =  Join-Path $TargetPath "$(Split-Path -Leaf $TargetPath).vhd"
+
+if($ExtraDriversPaths)
+{
+    $dismPath = Join-Path $NanoServerDir "Tools\dism.exe"
+    $mountDir = Join-Path $TargetPath "MountDir"
+
+    if(!(Test-Path $mountDir))
+    {
+        mkdir $mountDir
+    }
+
+    & $dismPath /Mount-Image /ImageFile:$vhdPath /Index:1 /MountDir:$mountDir
+    if($lastexitcode) { throw "dism /Mount-Image failed"}
+
+    try
+    {
+        foreach($driverPath in $ExtraDriversPaths)
+        {
+            & $dismPath /Add-Driver /image:$mountDir /driver:$driverPath /Recurse
+            if($lastexitcode) { throw "dism /Add-Driver failed for path: $driverPath"}
+        }
+    }
+    finally
+    {
+        & $dismPath /Unmount-Image /MountDir:$mountDir /Commit
+        if($lastexitcode) { throw "dism /Unmount-Image failed"}
+    }
+}
+
+# .\new-nanoserverimage.ps1 dos not have a VHD size attribute
 $vhdxPath = "${vhdPath}x"
 Convert-VHD $vhdPath $vhdxPath
 del $vhdPath
@@ -68,4 +123,3 @@ finally
 }
 
 Resize-VHD $vhdxPath -ToMinimumSize
-return $vhdxPath
