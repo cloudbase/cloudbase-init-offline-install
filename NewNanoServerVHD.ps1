@@ -38,7 +38,8 @@ if(Test-Path $TargetPath)
 }
 
 $addGuestDrivers = ($Platform -eq "Hyper-V")
-$addOEMDrivers = ($Platform -eq "BareMetal")
+# Note: VMWare can work w/o OEMDrivers, except for the keyboard
+$addOEMDrivers = ($Platform -ne "Hyper-V")
 
 $isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
 
