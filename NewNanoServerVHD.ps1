@@ -28,6 +28,10 @@ Param(
     [switch]$Compute,
     [switch]$Storage,
     [switch]$Clustering,
+    [UInt64]
+    [ValidateNotNullOrEmpty()]
+    [ValidateRange(512MB, 64TB)]
+    $SizeBytes = 750MB,
     [string[]]$ExtraDriversPaths = @(),
     [string]$VMWareDriversBasePath = "$Env:CommonProgramFiles\VMware\Drivers",
     [string]$NanoServerDir = "${env:SystemDrive}\NanoServer"
@@ -67,19 +71,31 @@ $isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
 
 try
 {
-    pushd "${isoMountDrive}:\NanoServer"
-    try
+    # The following hack is necessary because New-NanoServerImage (TP3) does
+    # not provide a way to pass the target image size to Convert-WindowsImage.
+    # For now we just update dynamically the script waiting for a fix
+    # in an updated version of New-NanoServerImage.
+    $isoNanoServerPath = "${isoMountDrive}:\NanoServer"
+    copy (Join-Path $isoNanoServerPath "convert-windowsimage.ps1") $PSScriptRoot -Force
+    Get-Content (Join-Path $isoNanoServerPath "new-nanoserverimage.ps1") | `
+    Foreach-Object {$_ -replace "Convert-WindowsImage -SourcePath", "Convert-WindowsImage -SizeBytes $SizeBytes -SourcePath"} | `
+    Set-Content "$PSScriptRoot\new-nanoserverimage.ps1" -Force
+
+    $baseVhdPath = Join-Path $NanoServerDir "NanoServer.vhd"
+    if(Test-Path -PathType Leaf $baseVhdPath)
     {
-        . ".\new-nanoserverimage.ps1"
-        New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
-        -AdministratorPassword $AdministratorPassword -TargetPath $TargetPath `
-        -GuestDrivers:$addGuestDrivers -OEMDrivers:$addOEMDrivers `
-        -ReverseForwarders -Compute:$Compute -Storage:$Storage -Clustering:$Clustering
+        # Check if the base VHD needs to be rebuilt
+        if ((get-VHD C:\NanoServer\NanoServer.vhd).Size -ne $SizeBytes)
+        {
+            del -Force $baseVhdPath
+        }
     }
-    finally
-    {
-        popd
-    }
+
+    . "$PSScriptRoot\new-nanoserverimage.ps1"
+    New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
+    -AdministratorPassword $AdministratorPassword -TargetPath $TargetPath `
+    -GuestDrivers:$addGuestDrivers -OEMDrivers:$addOEMDrivers `
+    -ReverseForwarders -Compute:$Compute -Storage:$Storage -Clustering:$Clustering
 }
 finally
 {
@@ -129,34 +145,15 @@ if($ExtraDriversPaths)
     }
 }
 
-# .\new-nanoserverimage.ps1 dos not have a VHD size attribute
-$vhdxPath = "${vhdPath}x"
-# Convert to VHDX as VHD does not allow resizing down
-Convert-VHD $vhdPath $vhdxPath
-del $vhdPath
-
-$disk = Mount-Vhd $vhdxPath -Passthru
-try
+if($DiskFormat -eq "vhdx")
 {
-    $part = $disk | Get-Partition
-    $sizeMin = ($part |  Get-PartitionSupportedSize).SizeMin
-    $part | Resize-Partition -Size $sizeMin
+    $vhdxPath = "${vhdPath}x"
+    Convert-VHD $vhdPath $vhdxPath
+    del $vhdPath
 }
-finally
+elseif ($DiskFormat -ne "vhd")
 {
-    Dismount-VHD -DiskNumber $disk.DiskNumber
-}
-
-Resize-VHD $vhdxPath -ToMinimumSize
-
-if($DiskFormat -eq "vhd")
-{
-    Convert-VHD $vhdxPath $vhdPath
-    del $vhdxPath
-}
-elseif ($DiskFormat -ne "vhdx")
-{
-    $path = Get-Item $vhdxPath
+    $path = Get-Item $vhdPath
     $diskPath = Join-Path $path.Directory ($path.BaseName + "." + $DiskFormat)
 
     if(Test-Path -PathType Leaf $diskPath)
@@ -165,7 +162,7 @@ elseif ($DiskFormat -ne "vhdx")
     }
 
     echo "Converting disk image to target format: $DiskFormat"
-    & $PSScriptRoot\Bin\qemu-img.exe convert -O $DiskFormat $vhdxPath $diskPath
+    & $PSScriptRoot\Bin\qemu-img.exe convert -O $DiskFormat $vhdPath $diskPath
     if($lastexitcode) { throw "qemu-img.exe convert failed" }
-    del $vhdxPath
+    del $vhdPath
 }
