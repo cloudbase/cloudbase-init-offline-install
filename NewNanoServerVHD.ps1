@@ -25,6 +25,7 @@ Param(
     [string]$Platform = "Hyper-V",
     [switch]$Compute,
     [switch]$Storage,
+    [switch]$Clustering,
     [string[]]$ExtraDriversPaths = @(),
     [string]$VMWareDriversBasePath = "$Env:CommonProgramFiles\VMware\Drivers",
     [string]$NanoServerDir = "${env:SystemDrive}\NanoServer"
@@ -52,7 +53,7 @@ try
         New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
         -AdministratorPassword $AdministratorPassword -TargetPath $TargetPath `
         -GuestDrivers:$addGuestDrivers -OEMDrivers:$addOEMDrivers `
-        -ReverseForwarders -Compute:$Compute -Storage:$Storage
+        -ReverseForwarders -Compute:$Compute -Storage:$Storage -Clustering:$Clustering
     }
     finally
     {
