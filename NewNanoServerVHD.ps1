@@ -23,6 +23,8 @@ Param(
     [Security.SecureString]$AdministratorPassword,
     [ValidateSet("Hyper-V", "VMware", "BareMetal")]
     [string]$Platform = "Hyper-V",
+    [ValidateSet("vmdk", "vhd", "vhdx", "qcow2", "raw")]
+    [string]$DiskFormat, # Format selected based on the platform by default
     [switch]$Compute,
     [switch]$Storage,
     [switch]$Clustering,
@@ -41,6 +43,25 @@ if(Test-Path $TargetPath)
 $addGuestDrivers = ($Platform -eq "Hyper-V")
 # Note: VMWare can work w/o OEMDrivers, except for the keyboard
 $addOEMDrivers = ($Platform -ne "Hyper-V")
+
+if(!$DiskFormat)
+{
+    switch($Platform)
+    {
+        "Hyper-V"
+        {
+            $DiskFormat = "vhdx"
+        }
+        "VMware"
+        {
+            $DiskFormat = "vmdk"
+        }
+        default # BareMetal
+        {
+            $DiskFormat = "raw"
+        }
+    }
+}
 
 $isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
 
@@ -102,6 +123,7 @@ if($ExtraDriversPaths)
     }
     finally
     {
+
         & $dismPath /Unmount-Image /MountDir:$mountDir /Commit
         if($lastexitcode) { throw "dism /Unmount-Image failed"}
     }
@@ -109,6 +131,7 @@ if($ExtraDriversPaths)
 
 # .\new-nanoserverimage.ps1 dos not have a VHD size attribute
 $vhdxPath = "${vhdPath}x"
+# Convert to VHDX as VHD does not allow resizing down
 Convert-VHD $vhdPath $vhdxPath
 del $vhdPath
 
@@ -125,3 +148,24 @@ finally
 }
 
 Resize-VHD $vhdxPath -ToMinimumSize
+
+if($DiskFormat -eq "vhd")
+{
+    Convert-VHD $vhdxPath $vhdPath
+    del $vhdxPath
+}
+elseif ($DiskFormat -ne "vhdx")
+{
+    $path = Get-Item $vhdxPath
+    $diskPath = Join-Path $path.Directory ($path.BaseName + "." + $DiskFormat)
+
+    if(Test-Path -PathType Leaf $diskPath)
+    {
+        del $diskPath
+    }
+
+    echo "Converting disk image to target format: $DiskFormat"
+    & $PSScriptRoot\Bin\qemu-img.exe convert -O $DiskFormat $vhdxPath $diskPath
+    if($lastexitcode) { throw "qemu-img.exe convert failed" }
+    del $vhdxPath
+}
