@@ -116,7 +116,15 @@ if($Platform -eq "VMware")
 
 $vhdPath =  Join-Path $TargetPath "$(Split-Path -Leaf $TargetPath).vhd"
 
-if($ExtraDriversPaths)
+$featuresToEnable = @()
+
+if($Storage)
+{
+    # File-Services, needed for S2D, is not enabled by default
+    $featuresToEnable += "File-Services"
+}
+
+if($ExtraDriversPaths -or $featuresToEnable)
 {
     $dismPath = Join-Path $NanoServerDir "Tools\dism.exe"
     $mountDir = Join-Path $TargetPath "MountDir"
@@ -131,6 +139,11 @@ if($ExtraDriversPaths)
 
     try
     {
+        foreach($featureName in $featuresToEnable)
+        {
+            & $dismPath /Enable-Feature /image:$mountDir /FeatureName:$featureName
+        }
+
         foreach($driverPath in $ExtraDriversPaths)
         {
             & $dismPath /Add-Driver /image:$mountDir /driver:$driverPath /Recurse
