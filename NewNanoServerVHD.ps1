@@ -18,20 +18,21 @@ Param(
     [Parameter(Mandatory=$True)]
     [string]$IsoPath,
     [Parameter(Mandatory=$True)]
+    [ValidatePattern('\.(vhdx?|raw|qcow2)$')]
     [string]$TargetPath,
     [Parameter(Mandatory=$True)]
     [Security.SecureString]$AdministratorPassword,
     [ValidateSet("Hyper-V", "VMware", "BareMetal")]
     [string]$Platform = "Hyper-V",
-    [ValidateSet("vmdk", "vhd", "vhdx", "qcow2", "raw")]
-    [string]$DiskFormat, # Format selected based on the platform by default
     [switch]$Compute,
     [switch]$Storage,
     [switch]$Clustering,
+    [switch]$Containers,
+    [String[]]$Packages,
     [UInt64]
     [ValidateNotNullOrEmpty()]
     [ValidateRange(512MB, 64TB)]
-    $SizeBytes = 750MB,
+    $SizeBytes = 1GB,
     [string[]]$ExtraDriversPaths = @(),
     [string]$VMWareDriversBasePath = "$Env:CommonProgramFiles\VMware\Drivers",
     [string]$NanoServerDir = "${env:SystemDrive}\NanoServer"
@@ -41,61 +42,33 @@ $ErrorActionPreference = "Stop"
 
 if(Test-Path $TargetPath)
 {
-    throw "The target directory ""$TargetPath"" already exists, please remove it before running this script"
+    throw "The target path ""$TargetPath"" already exists, please remove it before running this script"
+}
+
+if ($TargetPath -match ".vhdx?$")
+{
+    $vhdPath = $TargetPath
+}
+else
+{
+    $vhdPath = $TargetPath + ".vhdx"
 }
 
 $addGuestDrivers = ($Platform -eq "Hyper-V")
 # Note: VMWare can work w/o OEMDrivers, except for the keyboard
 $addOEMDrivers = ($Platform -ne "Hyper-V")
 
-if(!$DiskFormat)
-{
-    switch($Platform)
-    {
-        "Hyper-V"
-        {
-            $DiskFormat = "vhdx"
-        }
-        "VMware"
-        {
-            $DiskFormat = "vmdk"
-        }
-        default # BareMetal
-        {
-            $DiskFormat = "raw"
-        }
-    }
-}
-
 $isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
+$isoNanoServerPath = "${isoMountDrive}:\NanoServer"
 
 try
 {
-    # The following hack is necessary because New-NanoServerImage (TP3) does
-    # not provide a way to pass the target image size to Convert-WindowsImage.
-    # For now we just update dynamically the script waiting for a fix
-    # in an updated version of New-NanoServerImage.
-    $isoNanoServerPath = "${isoMountDrive}:\NanoServer"
-    copy (Join-Path $isoNanoServerPath "convert-windowsimage.ps1") $PSScriptRoot -Force
-    Get-Content (Join-Path $isoNanoServerPath "new-nanoserverimage.ps1") | `
-    Foreach-Object {$_ -replace "Convert-WindowsImage -SourcePath", "Convert-WindowsImage -SizeBytes $SizeBytes -SourcePath"} | `
-    Set-Content "$PSScriptRoot\new-nanoserverimage.ps1" -Force
-
-    $baseVhdPath = Join-Path $NanoServerDir "NanoServer.vhd"
-    if(Test-Path -PathType Leaf $baseVhdPath)
-    {
-        # Check if the base VHD needs to be rebuilt
-        if ((get-VHD C:\NanoServer\NanoServer.vhd).Size -ne $SizeBytes)
-        {
-            del -Force $baseVhdPath
-        }
-    }
-
-    . "$PSScriptRoot\new-nanoserverimage.ps1"
+    Import-Module "${isoNanoServerPath}\NanoServerImageGenerator.psm1"
     New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
-    -AdministratorPassword $AdministratorPassword -TargetPath $TargetPath `
+    -MaxSize $SizeBytes -AdministratorPassword $AdministratorPassword -TargetPath $vhdPath `
     -GuestDrivers:$addGuestDrivers -OEMDrivers:$addOEMDrivers `
-    -ReverseForwarders -Compute:$Compute -Storage:$Storage -Clustering:$Clustering
+    -ReverseForwarders -Compute:$Compute -Storage:$Storage -Clustering:$Clustering `
+    -Containers:$Containers -Packages $Packages
 }
 finally
 {
@@ -114,8 +87,6 @@ if($Platform -eq "VMware")
     $ExtraDriversPaths += Join-Path $VMWareDriversBasePath "vmci\device"
 }
 
-$vhdPath =  Join-Path $TargetPath "$(Split-Path -Leaf $TargetPath).vhd"
-
 $featuresToEnable = @()
 
 if($Storage)
@@ -127,7 +98,7 @@ if($Storage)
 if($ExtraDriversPaths -or $featuresToEnable)
 {
     $dismPath = Join-Path $NanoServerDir "Tools\dism.exe"
-    $mountDir = Join-Path $TargetPath "MountDir"
+    $mountDir = Join-Path $NanoServerDir "MountDir"
 
     if(!(Test-Path $mountDir))
     {
@@ -158,24 +129,17 @@ if($ExtraDriversPaths -or $featuresToEnable)
     }
 }
 
-if($DiskFormat -eq "vhdx")
+if ($vhdPath -ne $TargetPath)
 {
-    $vhdxPath = "${vhdPath}x"
-    Convert-VHD $vhdPath $vhdxPath
-    del $vhdPath
-}
-elseif ($DiskFormat -ne "vhd")
-{
-    $path = Get-Item $vhdPath
-    $diskPath = Join-Path $path.Directory ($path.BaseName + "." + $DiskFormat)
-
-    if(Test-Path -PathType Leaf $diskPath)
+    if(Test-Path -PathType Leaf $TargetPath)
     {
-        del $diskPath
+        del $TargetPath
     }
 
-    echo "Converting disk image to target format: $DiskFormat"
-    & $PSScriptRoot\Bin\qemu-img.exe convert -O $DiskFormat $vhdPath $diskPath
+    $diskFormat = [System.IO.Path]::GetExtension($TargetPath).substring(1).ToLower()
+
+    echo "Converting disk image to target format: $diskFormat"
+    & $PSScriptRoot\Bin\qemu-img.exe convert -O $diskFormat $vhdPath $TargetPath
     if($lastexitcode) { throw "qemu-img.exe convert failed" }
     del $vhdPath
 }

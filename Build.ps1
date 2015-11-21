@@ -1,21 +1,22 @@
 $ErrorActionPreference = "Stop"
 
-$targetPath = "C:\VHDs\Nano"
-$isoPath = "C:\ISO\Windows_Server_2016_Technical_Preview_3.ISO"
+$targetPath = "C:\VHDs\Nano.vhdx"
+$isoPath = "C:\ISO\Windows_Server_2016_Technical_Preview_4.ISO"
 $password = ConvertTo-SecureString -AsPlaintext -Force "P@ssw0rd"
 
 if(Test-Path $targetPath)
 {
-    del -recurse $targetPath
+    del $targetPath
 }
 
-.\NewNanoServerVHD.ps1 -IsoPath $isoPath -TargetPath $targetPath -AdministratorPassword $password -Platform "Hyper-V"
-$vhdxPath =  Join-Path $TargetPath "$(Split-Path -Leaf $TargetPath).vhdx"
+.\NewNanoServerVHD.ps1 -IsoPath $isoPath -TargetPath $targetPath -AdministratorPassword $password -Platform "Hyper-V" `
+-Compute -Storage -Clustering `
+-ExtraDriversPaths C:\Dev\Drivers\NUC_2015_Intel_ndis64\
 
 $cloudbaseInitZipPath = Join-Path $pwd CloudbaseInitSetup_x64.zip
 Start-BitsTransfer -Source "https://www.cloudbase.it/downloads/CloudbaseInitSetup_x64.zip" -Destination $cloudbaseInitZipPath
 
-.\CloudbaseInitOfflineSetup.ps1 -VhdPath $vhdxPath -CloudbaseInitZipPath $cloudbaseInitZipPath
+.\CloudbaseInitOfflineSetup.ps1 -VhdPath $targetPath -CloudbaseInitZipPath $cloudbaseInitZipPath
 
 Write-Host
-Write-Host "Your OpenStack Nano Server image is ready: $vhdxPath"
+Write-Host "Your OpenStack Nano Server image is ready: $targetPath"
