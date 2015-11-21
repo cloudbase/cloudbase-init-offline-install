@@ -47,7 +47,7 @@ try
     try
     {
         $7z = Join-Path $scriptPath "7z.exe"
-        & $7z x $CloudbaseInitZipPath -y
+        & $7z x $CloudbaseInitZipPath -y | Out-Null
         if($LastExitCode) { throw "7z.exe failed to unzip: $CloudbaseInitZipPath"}
     }
     finally
