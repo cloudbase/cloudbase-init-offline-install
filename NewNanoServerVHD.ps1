@@ -18,7 +18,7 @@ Param(
     [Parameter(Mandatory=$True)]
     [string]$IsoPath,
     [Parameter(Mandatory=$True)]
-    [ValidatePattern('\.(vhdx?|raw|qcow2)$')]
+    [ValidatePattern('\.(vhdx?|raw|vmdk|qcow2)$')]
     [string]$TargetPath,
     [Parameter(Mandatory=$True)]
     [Security.SecureString]$AdministratorPassword,
@@ -32,17 +32,25 @@ Param(
     [UInt64]
     [ValidateNotNullOrEmpty()]
     [ValidateRange(512MB, 64TB)]
-    $MaxSize = 1GB,
+    $MaxSize = 1.5GB,
     [string[]]$ExtraDriversPaths = @(),
     [string]$VMWareDriversBasePath = "$Env:CommonProgramFiles\VMware\Drivers",
-    [string]$NanoServerDir = "${env:SystemDrive}\NanoServer"
+    [string]$NanoServerDir = "${env:SystemDrive}\NanoServer",
+    [switch]$AddCloudbaseInit = $true,
+    [string]$CloudbaseInitZipPath,
+    [string]$CloudbaseInitCOMPort = "COM1"
 )
 
 $ErrorActionPreference = "Stop"
 
 if(Test-Path $TargetPath)
 {
-    throw "The target path ""$TargetPath"" already exists, please remove it before running this script"
+    throw "The target path ""`$TargetPath"" already exists, please remove it before running this script"
+}
+
+if($CloudbaseInitZipPath -and !(Test-Path $TargetPath))
+{
+    throw "The path ""`$CloudbaseInitZipPath"" was not found"
 }
 
 if ($TargetPath -match ".vhdx?$")
@@ -126,6 +134,35 @@ if($ExtraDriversPaths -or $featuresToEnable)
 
         & $dismPath /Unmount-Image /MountDir:$mountDir /Commit
         if($lastexitcode) { throw "dism /Unmount-Image failed"}
+    }
+}
+
+if($AddCloudbaseInit)
+{
+    if($CloudbaseInitZipPath)
+    {
+        $zipPath = $CloudbaseInitZipPath
+    }
+    else
+    {
+        $cloudbaseInitUri = "https://www.cloudbase.it/downloads/CloudbaseInitSetup_x64.zip"
+
+        $zipPath = Join-Path $NanoServerDir "CloudbaseInit.zip"
+
+        if(Test-Path $zipPath)
+        {
+            del $zipPath
+        }
+
+        Import-Module "${PSScriptRoot}\FastWebRequest.psm1"
+        Invoke-FastWebRequest -Uri $cloudbaseInitUri -OutFile $zipPath
+    }
+
+    . "${PSScriptRoot}\CloudbaseInitOfflineSetup.ps1" -VhdPath $vhdPath -CloudbaseInitZipPath $zipPath -LoggingCOMPort $CloudbaseInitCOMPort
+
+    if(!$CloudbaseInitZipPath)
+    {
+        del $zipPath
     }
 }
 

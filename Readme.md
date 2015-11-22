@@ -2,8 +2,11 @@
 
 Building a Nano Server image for OpenStack consists in 2 main steps:
 
-* Preparing a NanoServer VHD image
+* Preparing a NanoServer image
 * Downloading and installing Cloudbase-Init in the offline VHD image
+
+All you need to do is to run NewNanoServerVHD.ps1 to generate a
+complete image.
 
 #### NanoServer OpenStack build automation
 
@@ -15,12 +18,7 @@ A full example is available in _Build.ps1_.
 
     .\NewNanoServerVHD.ps1 -IsoPath $isoPath -TargetPath $targetPath -AdministratorPassword $password
 
-    $cloudbaseInitZipPath = Join-Path $pwd CloudbaseInitSetup_x64.zip
-    Start-BitsTransfer -Source "https://www.cloudbase.it/downloads/CloudbaseInitSetup_x64.zip" -Destination $cloudbaseInitZipPath
-
-    .\CloudbaseInitOfflineSetup.ps1 -VhdPath $targetPath -CloudbaseInitZipPath $cloudbaseInitZipPath
-
 The resulting _nano.vhdx_ file is now ready to be uploaded in Glance:
 
-    glance image-create --property hypervisor_type=hyperv --name "Nano Server" ` 
+    glance image-create --property hypervisor_type=hyperv --name "Nano Server" `
     --container-format bare --disk-format vhd --file $targetPath

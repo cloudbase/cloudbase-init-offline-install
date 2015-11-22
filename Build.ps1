@@ -11,12 +11,8 @@ if(Test-Path $targetPath)
 
 .\NewNanoServerVHD.ps1 -IsoPath $isoPath -TargetPath $targetPath -AdministratorPassword $password -Platform "Hyper-V" `
 -Compute -Storage -Clustering `
--ExtraDriversPaths C:\Dev\Drivers\NUC_2015_Intel_ndis64\
-
-$cloudbaseInitZipPath = Join-Path $pwd CloudbaseInitSetup_x64.zip
-Start-BitsTransfer -Source "https://www.cloudbase.it/downloads/CloudbaseInitSetup_x64.zip" -Destination $cloudbaseInitZipPath
-
-.\CloudbaseInitOfflineSetup.ps1 -VhdPath $targetPath -CloudbaseInitZipPath $cloudbaseInitZipPath
+-ExtraDriversPaths C:\Dev\Drivers\NUC_2015_Intel_ndis64\ `
+-AddCloudbaseInit
 
 Write-Host
 Write-Host "Your OpenStack Nano Server image is ready: $targetPath"
