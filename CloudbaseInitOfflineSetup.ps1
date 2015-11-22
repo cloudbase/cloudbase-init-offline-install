@@ -34,19 +34,20 @@ if(!(Test-Path -PathType Leaf $CloudbaseInitZipPath))
 $disk = Mount-Vhd $VHDPath -Passthru
 try
 {
-    $driveLetter = (Get-Disk -Number $disk.DiskNumber | Get-Partition).DriveLetter
+    $driveLetter = (Get-Disk -Number $disk.DiskNumber | Get-Partition).DriveLetter | where {$_}
 
     $cloudbaseInitDir = "Cloudbase-Init"
     $cloudbaseInitBaseDir = Join-Path "${driveLetter}:\" $cloudbaseInitDir
     if(Test-Path $cloudbaseInitBaseDir) {
         rmdir -Recurse -Force $cloudbaseInitBaseDir
     }
-    mkdir $cloudbaseInitBaseDir
+    $d = mkdir $cloudbaseInitBaseDir
 
     pushd $cloudbaseInitBaseDir
     try
     {
         $7z = Join-Path $scriptPath "7z.exe"
+        echo "Unzipping Cloudbase-Init..."
         & $7z x $CloudbaseInitZipPath -y | Out-Null
         if($LastExitCode) { throw "7z.exe failed to unzip: $CloudbaseInitZipPath"}
     }
@@ -56,15 +57,15 @@ try
     }
 
     $cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "Config"
-    mkdir $cloudbaseInitConfigDir
+    $d = mkdir $cloudbaseInitConfigDir
     $cloudbaseInitLogDir = Join-Path $cloudbaseInitBaseDir "Log"
-    mkdir $cloudbaseInitLogDir
+    $d = mkdir $cloudbaseInitLogDir
 
     . (Join-Path $scriptPath "ini.ps1")
 
     $setupScriptsDir = "${driveLetter}:\Windows\Setup\Scripts"
     if(!(Test-Path $setupScriptsDir)) {
-        mkdir $setupScriptsDir
+        $d = mkdir $setupScriptsDir
     }
 
     $cloudbaseInitConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init.conf"
