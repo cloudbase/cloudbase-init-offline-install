@@ -32,7 +32,7 @@ Param(
     [UInt64]
     [ValidateNotNullOrEmpty()]
     [ValidateRange(512MB, 64TB)]
-    $SizeBytes = 1GB,
+    $MaxSize = 1GB,
     [string[]]$ExtraDriversPaths = @(),
     [string]$VMWareDriversBasePath = "$Env:CommonProgramFiles\VMware\Drivers",
     [string]$NanoServerDir = "${env:SystemDrive}\NanoServer"
@@ -65,7 +65,7 @@ try
 {
     Import-Module "${isoNanoServerPath}\NanoServerImageGenerator.psm1"
     New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
-    -MaxSize $SizeBytes -AdministratorPassword $AdministratorPassword -TargetPath $vhdPath `
+    -MaxSize $MaxSize -AdministratorPassword $AdministratorPassword -TargetPath $vhdPath `
     -GuestDrivers:$addGuestDrivers -OEMDrivers:$addOEMDrivers `
     -ReverseForwarders -Compute:$Compute -Storage:$Storage -Clustering:$Clustering `
     -Containers:$Containers -Packages $Packages
