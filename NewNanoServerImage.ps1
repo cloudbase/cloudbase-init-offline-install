@@ -59,7 +59,8 @@ if ($TargetPath -match ".vhdx?$")
 }
 else
 {
-    $vhdPath = $TargetPath + ".vhdx"
+    # Note: currently VHDX creates a GPT-based image for Gen2, while VHD targets a MBR-based Gen1.
+    $vhdPath = $TargetPath + ".vhd"
 }
 
 $addGuestDrivers = ($Platform -eq "Hyper-V")
