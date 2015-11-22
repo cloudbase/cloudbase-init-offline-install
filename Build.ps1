@@ -13,7 +13,8 @@ if(Test-Path $targetPath)
 -AdministratorPassword $password -Platform "Hyper-V" `
 -Compute -Storage -Clustering `
 -ExtraDriversPaths C:\Dev\Drivers\NUC_2015_Intel_ndis64\ `
--AddCloudbaseInit
+-AddCloudbaseInit `
+-MaxSize 1200MB
 
 Write-Host
 Write-Host "Your OpenStack Nano Server image is ready: $targetPath"

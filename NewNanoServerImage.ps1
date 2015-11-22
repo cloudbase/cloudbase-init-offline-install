@@ -166,6 +166,29 @@ if($AddCloudbaseInit)
     }
 }
 
+$disk = Mount-Vhd $vhdPath -Passthru
+try
+{
+    $driveLetter = (Get-Disk -Number $disk.DiskNumber | Get-Partition).DriveLetter | where {$_}
+    $logicalDisk = Get-CimInstance Win32_LogicalDisk -filter ("DeviceId = '{0}:'" -f $driveLetter)
+
+    Write-Output ("Total space on Nano image partition: {0:N2} MB" -f ($logicalDisk.Size / 1MB))
+
+    $msg = "Free space on Nano image partition: {0:N2} MB" -f ($logicalDisk.FreeSpace / 1MB)
+    if($logicalDisk.FreeSpace -lt 100MB)
+    {
+        Write-Warning $msg
+    }
+    else
+    {
+        Write-Output $msg
+    }
+}
+finally
+{
+    Dismount-VHD -DiskNumber $disk.DiskNumber
+}
+
 if ($vhdPath -ne $TargetPath)
 {
     if(Test-Path -PathType Leaf $TargetPath)
