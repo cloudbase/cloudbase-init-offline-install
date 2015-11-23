@@ -18,7 +18,7 @@ Param(
     [Parameter(Mandatory=$True)]
     [string]$IsoPath,
     [Parameter(Mandatory=$True)]
-    [ValidatePattern('\.(vhdx?|raw|vmdk|qcow2)$')]
+    [ValidatePattern('\.(vhdx?|raw|raw.gz|vmdk|qcow2)$')]
     [string]$TargetPath,
     [Parameter(Mandatory=$True)]
     [Security.SecureString]$AdministratorPassword,
@@ -198,9 +198,26 @@ if ($vhdPath -ne $TargetPath)
     }
 
     $diskFormat = [System.IO.Path]::GetExtension($TargetPath).substring(1).ToLower()
+    if($diskFormat -eq "gz")
+    {
+        $gzipImage = $true
+        $imagePath = $TargetPath.Substring(0, $TargetPath.LastIndexOf("."))
+        $diskFormat = [System.IO.Path]::GetExtension($imagePath).substring(1).ToLower()
+    }
+    else
+    {
+        $gzipImage = $false
+        $imagePath = $TargetPath
+    }
 
-    echo "Converting disk image to target format: $diskFormat"
-    & $PSScriptRoot\Bin\qemu-img.exe convert -O $diskFormat $vhdPath $TargetPath
+    echo "Converting disk image to target image format: $imageFormat"
+    & $PSScriptRoot\Bin\qemu-img.exe convert -O $diskFormat $vhdPath $imagePath
     if($lastexitcode) { throw "qemu-img.exe convert failed" }
     del $vhdPath
+
+    if($gzipImage)
+    {
+        & $PSScriptRoot\Bin\pigz.exe $imagePath
+        if($lastexitcode) { throw "pigz.exe failed while compressing: $imagePath" }
+    }
 }
