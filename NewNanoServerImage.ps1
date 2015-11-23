@@ -18,7 +18,7 @@ Param(
     [Parameter(Mandatory=$True)]
     [string]$IsoPath,
     [Parameter(Mandatory=$True)]
-    [ValidatePattern('\.(vhdx?|raw|raw.gz|vmdk|qcow2)$')]
+    [ValidatePattern('\.(vhdx?|raw|raw.gz|raw.tgz|vmdk|qcow2)$')]
     [string]$TargetPath,
     [Parameter(Mandatory=$True)]
     [Security.SecureString]$AdministratorPassword,
@@ -198,15 +198,20 @@ if ($vhdPath -ne $TargetPath)
     }
 
     $diskFormat = [System.IO.Path]::GetExtension($TargetPath).substring(1).ToLower()
-    if($diskFormat -eq "gz")
+    $tar = $false
+    $gzip = $false
+    if($diskFormat -eq "gz" -or $diskFormat -eq "tgz")
     {
-        $gzipImage = $true
+        if($diskFormat -eq "tgz")
+        {
+            $tar = $true
+        }
+        $gzip = $true
         $imagePath = $TargetPath.Substring(0, $TargetPath.LastIndexOf("."))
         $diskFormat = [System.IO.Path]::GetExtension($imagePath).substring(1).ToLower()
     }
     else
     {
-        $gzipImage = $false
         $imagePath = $TargetPath
     }
 
@@ -215,9 +220,47 @@ if ($vhdPath -ne $TargetPath)
     if($lastexitcode) { throw "qemu-img.exe convert failed" }
     del $vhdPath
 
-    if($gzipImage)
+    if($tar)
     {
+        $imagePathTmp = "${imagePath}.tar"
+        if(Test-Path $imagePathTmp)
+        {
+            del $imagePathTmp
+        }
+
+        pushd ([System.IO.Path]::GetDirectoryName((Resolve-path $imagePath).Path))
+        try
+        {
+            # Avoid storing the full path in the archive
+            $imageFileName = (Get-Item $imagePath).Name
+            echo "Creating tar archive..."
+            & $PSScriptRoot\Bin\7z.exe a -ttar $imagePathTmp $imageFileName
+            if($lastexitcode) { throw "7z.exe failed while creating tar file for image: $imagePath" }
+        }
+        finally
+        {
+            popd
+        }
+
+        del $imagePath
+        $imagePath = $imagePathTmp
+    }
+
+    if($gzip)
+    {
+        $imagePathGzip = "${imagePath}.gz"
+        if(Test-Path $imagePathGzip)
+        {
+            del $imagePathGzip
+        }
+
+        echo "Compressing with gzip..."
         & $PSScriptRoot\Bin\pigz.exe $imagePath
         if($lastexitcode) { throw "pigz.exe failed while compressing: $imagePath" }
+
+        if($imagePathGzip -ine $TargetPath)
+        {
+            Rename-Item $imagePathGzip $TargetPath
+        }
     }
 }
