@@ -23,8 +23,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
-
 $CloudbaseInitZipPath = Resolve-Path $CloudbaseInitZipPath
 if(!(Test-Path -PathType Leaf $CloudbaseInitZipPath))
 {
@@ -46,9 +44,8 @@ try
     pushd $cloudbaseInitBaseDir
     try
     {
-        $7z = Join-Path $scriptPath "7z.exe"
         echo "Unzipping Cloudbase-Init..."
-        & $7z x $CloudbaseInitZipPath -y | Out-Null
+        & "$PSScriptRoot\Bin\7z.exe" x $CloudbaseInitZipPath -y | Out-Null
         if($LastExitCode) { throw "7z.exe failed to unzip: $CloudbaseInitZipPath"}
     }
     finally
@@ -61,7 +58,7 @@ try
     $cloudbaseInitLogDir = Join-Path $cloudbaseInitBaseDir "Log"
     $d = mkdir $cloudbaseInitLogDir
 
-    . (Join-Path $scriptPath "ini.ps1")
+    . (Join-Path $PSScriptRoot "ini.ps1")
 
     $setupScriptsDir = "${driveLetter}:\Windows\Setup\Scripts"
     if(!(Test-Path $setupScriptsDir)) {
@@ -106,8 +103,8 @@ try
     Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "check_latest_version" -Value $false
     Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "logfile" -Value "cloudbase-init-unattend.log"
 
-    copy -Force (Join-Path $scriptPath "SetupComplete.cmd") $setupScriptsDir
-    copy -Force (Join-Path $scriptPath "PostInstall.ps1") $setupScriptsDir
+    copy -Force (Join-Path $PSScriptRoot "SetupComplete.cmd") $setupScriptsDir
+    copy -Force (Join-Path $PSScriptRoot "PostInstall.ps1") $setupScriptsDir
 }
 finally
 {
