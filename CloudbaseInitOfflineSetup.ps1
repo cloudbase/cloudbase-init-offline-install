@@ -29,10 +29,10 @@ if(!(Test-Path -PathType Leaf $CloudbaseInitZipPath))
     throw "Zip file ""$CloudbaseInitZipPath"" does not exist"
 }
 
-$disk = Mount-Vhd $VHDPath -Passthru
+$diskImage = Mount-DiskImage $VHDPath -PassThru | Get-DiskImage
 try
 {
-    $driveLetter = (Get-Disk -Number $disk.DiskNumber | Get-Partition).DriveLetter | where {$_}
+    $driveLetter = (Get-Disk -Number $diskImage.Number | Get-Partition).DriveLetter | where {$_}
 
     $cloudbaseInitDir = "Cloudbase-Init"
     $cloudbaseInitBaseDir = Join-Path "${driveLetter}:\" $cloudbaseInitDir
@@ -108,7 +108,7 @@ try
 }
 finally
 {
-    Dismount-VHD -DiskNumber $disk.DiskNumber
+    Dismount-DiskImage $VHDPath
 }
 
 Write-Host
