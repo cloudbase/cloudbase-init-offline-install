@@ -1,17 +1,32 @@
 $ErrorActionPreference = "Stop"
 
+# Nano server does not include Invoke-WebRequest
 function Invoke-FastWebRequest
 {
     [CmdletBinding()]
     Param(
     [Parameter(Mandatory=$True,ValueFromPipeline=$true,Position=0)]
     [System.Uri]$Uri,
-    [Parameter(Mandatory=$True,Position=1)]
+    [Parameter(Position=1)]
     [string]$OutFile
     )
     PROCESS
     {
-        $assembly = [System.Reflection.Assembly]::LoadWithPartialName("System.Net.Http")
+        if(!([System.Management.Automation.PSTypeName]'System.Net.Http.HttpClient').Type)
+        {
+            $assembly = [System.Reflection.Assembly]::LoadWithPartialName("System.Net.Http")
+        }
+
+        [Environment]::CurrentDirectory = (pwd).Path
+
+        if(!$OutFile)
+        {
+            $OutFile = $Uri.PathAndQuery.Substring($Uri.PathAndQuery.LastIndexOf("/") + 1)
+            if(!$OutFile)
+            {
+                throw "The ""OutFile"" parameter needs to be specified"
+            }
+        }
 
         $client = new-object System.Net.Http.HttpClient
         $task = $client.GetAsync($Uri)
@@ -49,4 +64,3 @@ function Invoke-FastWebRequest
         }
     }
 }
-
