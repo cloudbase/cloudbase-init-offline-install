@@ -45,8 +45,8 @@ try
     try
     {
         echo "Unzipping Cloudbase-Init..."
-        & "$PSScriptRoot\Bin\7z.exe" x $CloudbaseInitZipPath -y | Out-Null
-        if($LastExitCode) { throw "7z.exe failed to unzip: $CloudbaseInitZipPath"}
+        & "$PSScriptRoot\Bin\7za.exe" x $CloudbaseInitZipPath -y | Out-Null
+        if($LastExitCode) { throw "7za.exe failed to unzip: $CloudbaseInitZipPath"}
     }
     finally
     {

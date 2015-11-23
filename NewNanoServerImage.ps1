@@ -234,8 +234,8 @@ if ($vhdPath -ne $TargetPath)
             # Avoid storing the full path in the archive
             $imageFileName = (Get-Item $imagePath).Name
             echo "Creating tar archive..."
-            & $PSScriptRoot\Bin\7z.exe a -ttar $imagePathTmp $imageFileName
-            if($lastexitcode) { throw "7z.exe failed while creating tar file for image: $imagePath" }
+            & $PSScriptRoot\Bin\7za.exe a -ttar $imagePathTmp $imageFileName
+            if($lastexitcode) { throw "7za.exe failed while creating tar file for image: $imagePath" }
         }
         finally
         {
