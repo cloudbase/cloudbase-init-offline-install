@@ -53,7 +53,7 @@ try
         popd
     }
 
-    $cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "Config"
+    $cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "conf"
     $d = mkdir $cloudbaseInitConfigDir
     $cloudbaseInitLogDir = Join-Path $cloudbaseInitBaseDir "Log"
     $d = mkdir $cloudbaseInitLogDir
