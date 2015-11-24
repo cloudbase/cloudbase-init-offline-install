@@ -19,7 +19,7 @@ import-module Microsoft.PowerShell.Management
 import-module Microsoft.PowerShell.Utility
 
 $cloudbaseInitBaseDir = "$Env:SystemDrive\Cloudbase-Init"
-$cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "Config"
+$cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "conf"
 $cloudbaseInitLogDir = Join-Path $cloudbaseInitBaseDir "Log"
 $cloudbaseInitBinDir = Join-Path $cloudbaseInitBaseDir "Bin"
 $cloudbaseInitServiceWrapper = Join-Path $cloudbaseInitBinDir "OpenStackService.exe"
