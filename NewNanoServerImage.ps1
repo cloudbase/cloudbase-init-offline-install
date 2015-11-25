@@ -137,6 +137,7 @@ if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks)
         foreach($featureName in $featuresToEnable)
         {
             & $dismPath /Enable-Feature /image:$mountDir /FeatureName:$featureName
+            if($lastexitcode) { throw "dism /Enable-Feature failed for feature: $featureName"}
         }
 
         foreach($driverPath in $ExtraDriversPaths)
