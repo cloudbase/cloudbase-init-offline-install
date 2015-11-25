@@ -39,6 +39,7 @@ Param(
     [string]$VMWareDriversBasePath = "$Env:CommonProgramFiles\VMware\Drivers",
     [string]$NanoServerDir = "${env:SystemDrive}\NanoServer",
     [switch]$AddCloudbaseInit = $true,
+    [switch]$AddMaaSHooks,
     [string]$CloudbaseInitZipPath,
     [string]$CloudbaseInitCOMPort = "COM1"
 )
@@ -118,7 +119,7 @@ if($Storage)
     $featuresToEnable += "File-Services"
 }
 
-if($ExtraDriversPaths -or $featuresToEnable)
+if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks)
 {
     $dismPath = Join-Path $NanoServerDir "Tools\dism.exe"
     $mountDir = Join-Path $NanoServerDir "MountDir"
@@ -143,10 +144,14 @@ if($ExtraDriversPaths -or $featuresToEnable)
             & $dismPath /Add-Driver /image:$mountDir /driver:$driverPath /Recurse
             if($lastexitcode) { throw "dism /Add-Driver failed for path: $driverPath"}
         }
+
+        if($AddMaaSHooks)
+        {
+            copy -Recurse "${PSScriptRoot}\windows-curtin-hooks\curtin" "${mountDir}\curtin"
+        }
     }
     finally
     {
-
         & $dismPath /Unmount-Image /MountDir:$mountDir /Commit
         if($lastexitcode) { throw "dism /Unmount-Image failed"}
     }

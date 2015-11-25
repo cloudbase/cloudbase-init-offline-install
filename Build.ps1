@@ -14,6 +14,7 @@ if(Test-Path $targetPath)
 -Compute -Storage -Clustering `
 -ExtraDriversPaths C:\Dev\Drivers\NUC_2015_Intel_ndis64\ `
 -AddCloudbaseInit `
+-AddMaaSHooks `
 -MaxSize 1500MB `
 -DiskLayout "BIOS"
 
