@@ -20,6 +20,8 @@ Param(
     [Parameter(Mandatory=$True)]
     [ValidatePattern('\.(vhdx?|raw|raw.gz|raw.tgz|vmdk|qcow2)$')]
     [string]$TargetPath,
+    [ValidateSet("BIOS", "UEFI")]
+    [string]$DiskLayout = "BIOS",
     [Parameter(Mandatory=$True)]
     [Security.SecureString]$AdministratorPassword,
     [ValidateSet("Hyper-V", "VMware", "BareMetal")]
@@ -53,14 +55,26 @@ if($CloudbaseInitZipPath -and !(Test-Path $TargetPath))
     throw "The path ""`$CloudbaseInitZipPath"" was not found"
 }
 
-if ($TargetPath -match ".vhdx?$")
+# Note: currently VHDX creates a GPT EFI image for Gen2, while VHD targets a MBR BIOS Gen1.
+if($DiskLayout -eq "BIOS")
+{
+    $vhdPathFormat = "vhd"
+}
+else
+{
+    $vhdPathFormat = "vhdx"
+}
+
+$diskFormat = [System.IO.Path]::GetExtension($TargetPath).substring(1).ToLower()
+
+if ($diskFormat -eq $vhdPathFormat)
 {
     $vhdPath = $TargetPath
 }
 else
 {
-    # Note: currently VHDX creates a GPT-based image for Gen2, while VHD targets a MBR-based Gen1.
-    $vhdPath = $TargetPath + ".vhd"
+
+    $vhdPath = "${TargetPath}.${vhdPathFormat}"
 }
 
 $addGuestDrivers = ($Platform -eq "Hyper-V")
@@ -197,7 +211,6 @@ if ($vhdPath -ne $TargetPath)
         del $TargetPath
     }
 
-    $diskFormat = [System.IO.Path]::GetExtension($TargetPath).substring(1).ToLower()
     $tar = $false
     $gzip = $false
     if($diskFormat -eq "gz" -or $diskFormat -eq "tgz")
@@ -216,8 +229,15 @@ if ($vhdPath -ne $TargetPath)
     }
 
     echo "Converting disk image to target image format: $imageFormat"
-    & $PSScriptRoot\Bin\qemu-img.exe convert -O $diskFormat $vhdPath $imagePath
-    if($lastexitcode) { throw "qemu-img.exe convert failed" }
+    if(@("vhd", "vhdx") -contains $diskFormat)
+    {
+        Convert-VHD -Path $vhdPath -DestinationPath $imagePath
+    }
+    else
+    {
+        & $PSScriptRoot\Bin\qemu-img.exe convert -O $diskFormat $vhdPath $imagePath
+        if($lastexitcode) { throw "qemu-img.exe convert failed" }
+    }
     del $vhdPath
 
     if($tar)

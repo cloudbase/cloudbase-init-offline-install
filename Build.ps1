@@ -14,7 +14,8 @@ if(Test-Path $targetPath)
 -Compute -Storage -Clustering `
 -ExtraDriversPaths C:\Dev\Drivers\NUC_2015_Intel_ndis64\ `
 -AddCloudbaseInit `
--MaxSize 1200MB
+-MaxSize 1500MB `
+-DiskLayout "BIOS"
 
 Write-Host
 Write-Host "Your OpenStack Nano Server image is ready: $targetPath"
