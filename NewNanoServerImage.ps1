@@ -51,9 +51,9 @@ if(Test-Path $TargetPath)
     throw "The target path ""`$TargetPath"" already exists, please remove it before running this script"
 }
 
-if($CloudbaseInitZipPath -and !(Test-Path $TargetPath))
+if($CloudbaseInitZipPath -and !(Test-Path -PathType Leaf $CloudbaseInitZipPath))
 {
-    throw "The path ""`$CloudbaseInitZipPath"" was not found"
+    throw "The path ""$CloudbaseInitZipPath"" was not found"
 }
 
 # Note: currently VHDX creates a GPT EFI image for Gen2, while VHD targets a MBR BIOS Gen1.
