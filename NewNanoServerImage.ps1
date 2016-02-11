@@ -80,9 +80,10 @@ else
     $vhdPath = "${TargetPath}.${vhdPathFormat}"
 }
 
-$addGuestDrivers = ($Platform -eq "Hyper-V")
-# Note: VMWare and KVM can work w/o OEMDrivers, except for the keyboard
-$addOEMDrivers = (@("Hyper-V") -notcontains $Platform)
+# Note: KVM supports some Hyper-V enlightenments.
+$addGuestDrivers = (@("Hyper-V", "KVM") -contains $Platform)
+# Note: VMWare can work w/o OEMDrivers, except for the keyboard
+$addOEMDrivers = (@("Hyper-V", "KVM") -notcontains $Platform)
 
 $isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
 $isoNanoServerPath = "${isoMountDrive}:\NanoServer"
@@ -129,7 +130,7 @@ if($Platform -eq "KVM")
 
     $driveLetter = (Mount-DiskImage $VirtIODriversISOPath -StorageType ISO -PassThru | Get-Volume).DriveLetter
     $driversBasePath = "{0}:" -f $driveLetter
-    $drivers = @("Balloon", "NetKVM", "pvpanic", "viorng", "vioscsi", "vioserial", "viostor")
+    $drivers = @("Balloon", "NetKVM", "qxldod", "pvpanic", "viorng", "vioscsi", "vioserial", "viostor")
     foreach ($driver in $drivers)
     {
         $virtioDir = "{0}\{1}\w10\amd64" -f $driversBasePath, $driver
