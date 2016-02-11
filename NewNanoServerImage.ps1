@@ -24,7 +24,7 @@ Param(
     [string]$DiskLayout = "BIOS",
     [Parameter(Mandatory=$True)]
     [Security.SecureString]$AdministratorPassword,
-    [ValidateSet("Hyper-V", "VMware", "BareMetal")]
+    [ValidateSet("Hyper-V", "VMware", "KVM", "BareMetal")]
     [string]$Platform = "Hyper-V",
     [switch]$Compute,
     [switch]$Storage,
@@ -37,6 +37,7 @@ Param(
     $MaxSize = 1.5GB,
     [string[]]$ExtraDriversPaths = @(),
     [string]$VMWareDriversBasePath = "$Env:CommonProgramFiles\VMware\Drivers",
+    [string]$VirtIODriversISOPath,
     [string]$NanoServerDir = "${env:SystemDrive}\NanoServer",
     [switch]$AddCloudbaseInit = $true,
     [switch]$AddMaaSHooks,
@@ -45,6 +46,8 @@ Param(
 )
 
 $ErrorActionPreference = "Stop"
+
+Import-Module "${PSScriptRoot}\FastWebRequest.psm1"
 
 if(Test-Path $TargetPath)
 {
@@ -74,13 +77,12 @@ if ($diskFormat -eq $vhdPathFormat)
 }
 else
 {
-
     $vhdPath = "${TargetPath}.${vhdPathFormat}"
 }
 
 $addGuestDrivers = ($Platform -eq "Hyper-V")
-# Note: VMWare can work w/o OEMDrivers, except for the keyboard
-$addOEMDrivers = ($Platform -ne "Hyper-V")
+# Note: VMWare and KVM can work w/o OEMDrivers, except for the keyboard
+$addOEMDrivers = (@("Hyper-V") -notcontains $Platform)
 
 $isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
 $isoNanoServerPath = "${isoMountDrive}:\NanoServer"
@@ -109,6 +111,37 @@ if($Platform -eq "VMware")
     $ExtraDriversPaths += Join-Path $VMWareDriversBasePath "pvscsi"
     $ExtraDriversPaths += Join-Path $VMWareDriversBasePath "vmxnet3"
     $ExtraDriversPaths += Join-Path $VMWareDriversBasePath "vmci\device"
+}
+
+if($Platform -eq "KVM")
+{
+    if(!$VirtIODriversISOPath)
+    {
+        $virtIOIsoPath = Join-Path $NanoServerDir "virtio-win.iso"
+        if(Test-Path $virtIOIsoPath)
+        {
+            del $virtIOIsoPath
+        }
+        $virtioIsoUrl = "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/latest-virtio/virtio-win.iso"
+        Invoke-FastWebRequest -Uri $virtIOIsoUrl -OutFile $virtIOIsoPath
+        $VirtIODriversISOPath = $virtIOIsoPath
+    }
+
+    $driveLetter = (Mount-DiskImage $VirtIODriversISOPath -StorageType ISO -PassThru | Get-Volume).DriveLetter
+    $driversBasePath = "{0}:" -f $driveLetter
+    $drivers = @("Balloon", "NetKVM", "pvpanic", "viorng", "vioscsi", "vioserial", "viostor")
+    foreach ($driver in $drivers)
+    {
+        $virtioDir = "{0}\{1}\w10\amd64" -f $driversBasePath, $driver
+        if (Test-Path $virtioDir)
+        {
+            $ExtraDriversPaths += $virtioDir
+        }
+        else
+        {
+            Write-Warning ("Path not found: {0}" -f $virtioDir)
+        }
+    }
 }
 
 $featuresToEnable = @()
@@ -158,6 +191,11 @@ if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks)
     }
 }
 
+if($Platform -eq "KVM")
+{
+    Dismount-DiskImage $VirtIODriversISOPath
+}
+
 if($AddCloudbaseInit)
 {
     if($CloudbaseInitZipPath)
@@ -175,7 +213,6 @@ if($AddCloudbaseInit)
             del $zipPath
         }
 
-        Import-Module "${PSScriptRoot}\FastWebRequest.psm1"
         Invoke-FastWebRequest -Uri $cloudbaseInitUri -OutFile $zipPath
     }
 
