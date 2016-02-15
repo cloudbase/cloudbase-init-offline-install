@@ -12,9 +12,10 @@ if(Test-Path $targetPath)
 .\NewNanoServerImage.ps1 -IsoPath $isoPath -TargetPath $targetPath `
 -AdministratorPassword $password -Platform "Hyper-V" `
 -Compute -Storage -Clustering `
--ExtraDriversPaths C:\Dev\VMware_Drivers `
+-ExtraDriversPaths C:\Dev\Drivers\NUC_2015_Intel_ndis64\ `
 -AddCloudbaseInit `
--MaxSize 1000MB `
+-AddMaaSHooks `
+-MaxSize 1500MB `
 -DiskLayout "BIOS"
 
 Write-Host
