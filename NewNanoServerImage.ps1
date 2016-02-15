@@ -153,7 +153,7 @@ if($Storage)
     $featuresToEnable += "File-Services"
 }
 
-if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks)
+if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks -or $AddCloudbaseInit)
 {
     $dismPath = Join-Path $NanoServerDir "Tools\dism.exe"
     $mountDir = Join-Path $NanoServerDir "MountDir"
@@ -184,6 +184,49 @@ if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks)
         {
             copy -Recurse "${PSScriptRoot}\windows-curtin-hooks\curtin" "${mountDir}\curtin"
         }
+
+        if($AddCloudbaseInit)
+        {
+            if($CloudbaseInitZipPath)
+            {
+                $zipPath = $CloudbaseInitZipPath
+            }
+            else
+            {
+                $cloudbaseInitUri = "https://www.cloudbase.it/downloads/CloudbaseInitSetup_x64.zip"
+
+                $zipPath = Join-Path $NanoServerDir "CloudbaseInit.zip"
+
+                if(Test-Path $zipPath)
+                {
+                    del $zipPath
+                }
+
+                Invoke-FastWebRequest -Uri $cloudbaseInitUri -OutFile $zipPath
+            }
+
+            $cloudbaseInitDir = "Cloudbase-Init"
+            $cloudbaseInitBaseDir = Join-Path $mountDir $cloudbaseInitDir
+            $cloudbaseInitRuntimeBaseDir = "C:\${cloudbaseInitDir}"
+
+            $setupScriptsDir = Join-Path $mountDir "Windows\Setup\Scripts"
+            if(!(Test-Path $setupScriptsDir)) {
+                $d = mkdir $setupScriptsDir
+            }
+
+            . "${PSScriptRoot}\CloudbaseInitOfflineSetup.ps1" -CloudbaseInitBaseDir $cloudbaseInitBaseDir `
+            -CloudbaseInitRuntimeBaseDir $cloudbaseInitRuntimeBaseDir `
+            -CloudbaseInitZipPath $zipPath `
+            -LoggingCOMPort $CloudbaseInitCOMPort
+
+            copy -Force (Join-Path $PSScriptRoot "SetupComplete.cmd") $setupScriptsDir
+            copy -Force (Join-Path $PSScriptRoot "PostInstall.ps1") $setupScriptsDir
+
+            if(!$CloudbaseInitZipPath)
+            {
+                del $zipPath
+            }
+        }
     }
     finally
     {
@@ -195,34 +238,6 @@ if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks)
 if($Platform -eq "KVM")
 {
     Dismount-DiskImage $VirtIODriversISOPath
-}
-
-if($AddCloudbaseInit)
-{
-    if($CloudbaseInitZipPath)
-    {
-        $zipPath = $CloudbaseInitZipPath
-    }
-    else
-    {
-        $cloudbaseInitUri = "https://www.cloudbase.it/downloads/CloudbaseInitSetup_x64.zip"
-
-        $zipPath = Join-Path $NanoServerDir "CloudbaseInit.zip"
-
-        if(Test-Path $zipPath)
-        {
-            del $zipPath
-        }
-
-        Invoke-FastWebRequest -Uri $cloudbaseInitUri -OutFile $zipPath
-    }
-
-    . "${PSScriptRoot}\CloudbaseInitOfflineSetup.ps1" -VhdPath $vhdPath -CloudbaseInitZipPath $zipPath -LoggingCOMPort $CloudbaseInitCOMPort
-
-    if(!$CloudbaseInitZipPath)
-    {
-        del $zipPath
-    }
 }
 
 $diskImage = Mount-DiskImage $vhdPath -PassThru | Get-DiskImage

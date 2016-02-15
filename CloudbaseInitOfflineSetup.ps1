@@ -16,9 +16,12 @@ limitations under the License.
 
 param(
     [Parameter(Mandatory=$True)]
-    [string]$VHDPath,
+    [string]$CloudbaseInitBaseDir,
+    [Parameter(Mandatory=$True)]
+    [string]$CloudbaseInitRuntimeBaseDir,
     [string]$CloudbaseInitZipPath = "CloudbaseInitSetup_x64.zip",
-    [string]$LoggingCOMPort = "COM1"
+    [string]$LoggingCOMPort,
+    [switch]$IsWinPE
 )
 
 $ErrorActionPreference = "Stop"
@@ -29,72 +32,68 @@ if(!(Test-Path -PathType Leaf $CloudbaseInitZipPath))
     throw "Zip file ""$CloudbaseInitZipPath"" does not exist"
 }
 
-$diskImage = Mount-DiskImage $VHDPath -PassThru | Get-DiskImage
+if(Test-Path $CloudbaseInitBaseDir) {
+    rmdir -Recurse -Force $CloudbaseInitBaseDir
+}
+$d = mkdir $CloudbaseInitBaseDir
+
+pushd $CloudbaseInitBaseDir
 try
 {
-    $driveLetter = (Get-Disk -Number $diskImage.Number | Get-Partition).DriveLetter | where {$_}
+    echo "Unzipping Cloudbase-Init..."
+    & "$PSScriptRoot\Bin\7za.exe" x $CloudbaseInitZipPath -y | Out-Null
+    if($LastExitCode) { throw "7za.exe failed to unzip: $CloudbaseInitZipPath"}
+}
+finally
+{
+    popd
+}
 
-    $cloudbaseInitDir = "Cloudbase-Init"
-    $cloudbaseInitBaseDir = Join-Path "${driveLetter}:\" $cloudbaseInitDir
-    if(Test-Path $cloudbaseInitBaseDir) {
-        rmdir -Recurse -Force $cloudbaseInitBaseDir
-    }
-    $d = mkdir $cloudbaseInitBaseDir
+$cloudbaseInitConfigDir = Join-Path $CloudbaseInitBaseDir "conf"
+$d = mkdir $cloudbaseInitConfigDir
+$cloudbaseInitLogDir = Join-Path $CloudbaseInitBaseDir "Log"
+$d = mkdir $cloudbaseInitLogDir
 
-    pushd $cloudbaseInitBaseDir
-    try
-    {
-        echo "Unzipping Cloudbase-Init..."
-        & "$PSScriptRoot\Bin\7za.exe" x $CloudbaseInitZipPath -y | Out-Null
-        if($LastExitCode) { throw "7za.exe failed to unzip: $CloudbaseInitZipPath"}
-    }
-    finally
-    {
-        popd
-    }
+. (Join-Path $PSScriptRoot "ini.ps1")
 
-    $cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "conf"
-    $d = mkdir $cloudbaseInitConfigDir
-    $cloudbaseInitLogDir = Join-Path $cloudbaseInitBaseDir "Log"
-    $d = mkdir $cloudbaseInitLogDir
+$cloudbaseInitConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init.conf"
+$cloudbaseInitUnattendConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init-unattend.conf"
 
-    . (Join-Path $PSScriptRoot "ini.ps1")
+$cloudbaseInitRuntimeLogDir = "${CloudbaseInitRuntimeBaseDir}\Log"
+$cloudbaseInitRuntimeBinDir = "${CloudbaseInitRuntimeBaseDir}\Bin"
 
-    $setupScriptsDir = "${driveLetter}:\Windows\Setup\Scripts"
-    if(!(Test-Path $setupScriptsDir)) {
-        $d = mkdir $setupScriptsDir
-    }
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "username" -Value "Admin"
+# Todo: builtin group names must be retrieved from SID
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "groups" -Value "Administrators"
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "inject_user_password" -Value $true
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_raw_hhd" -Value $true
+# Nano does not have DVD drivers
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_cdrom" -Value $false
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_vfat" -Value $true
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "bsdtar_path" -Value "${CloudbaseInitRuntimeBinDir}\bsdtar.exe"
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "mtools_path" -Value $cloudbaseInitRuntimeBinDir
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logdir" -Value $cloudbaseInitRuntimeLogDir
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logfile" -Value "cloudbase-init.log"
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "default_log_levels" -Value "comtypes=INFO,suds=INFO,iso8601=WARN,requests=WARN"
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "mtu_use_dhcp_config" -Value $true
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "ntp_use_dhcp_config" -Value $true
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "allow_reboot" -Value $true
+Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "debug" -Value $true
 
-    $cloudbaseInitConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init.conf"
-    $cloudbaseInitUnattendConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init-unattend.conf"
+if($LoggingCOMPort) {
+    $loggingSerialPortSettings = "${LoggingCOMPort},115200,N,8"
+    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logging_serial_port_settings" -Value $loggingSerialPortSettings
+}
 
-    $cloudbaseInitRuntimeBaseDir = Join-Path "C:\" $cloudbaseInitDir
-    $cloudbaseInitRuntimeLogDir = Join-Path $cloudbaseInitRuntimeBaseDir "Log"
-    $cloudbaseInitRuntimeBinDir = Join-Path $cloudbaseInitRuntimeBaseDir "Bin"
-
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "username" -Value "Admin"
-    # Todo: builtin group names must be retrieved from SID
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "groups" -Value "Administrators"
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "inject_user_password" -Value $true
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_raw_hhd" -Value $true
-    # Nano does not have DVD drivers
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_cdrom" -Value $false
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "config_drive_vfat" -Value $true
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "bsdtar_path" -Value (join-Path $cloudbaseInitRuntimeBinDir "bsdtar.exe")
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "mtools_path" -Value $cloudbaseInitRuntimeBinDir
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logdir" -Value $cloudbaseInitRuntimeLogDir
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logfile" -Value "cloudbase-init.log"
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "default_log_levels" -Value "comtypes=INFO,suds=INFO,iso8601=WARN,requests=WARN"
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "mtu_use_dhcp_config" -Value $true
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "ntp_use_dhcp_config" -Value $true
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "allow_reboot" -Value $true
-    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "debug" -Value $true
-
-    if($LoggingCOMPort) {
-        $loggingSerialPortSettings = "${LoggingCOMPort},115200,N,8"
-        Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "logging_serial_port_settings" -Value $loggingSerialPortSettings
-    }
-
+if($IsWinPE) {
+    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "plugins" -Value  `
+    ("cloudbaseinit.plugins.common.mtu.MTUPlugin," + `
+    "cloudbaseinit.plugins.windows.ntpclient.NTPClientPlugin," + `
+    "cloudbaseinit.plugins.common.networkconfig.NetworkConfigPlugin," + `
+    "cloudbaseinit.plugins.common.userdata.UserDataPlugin," + `
+    "cloudbaseinit.plugins.common.localscripts.LocalScriptsPlugin")
+    Set-IniFileValue -Path $cloudbaseInitConfigFile -Key "stop_service_on_exit" -Value $false
+} else {
     copy $cloudbaseInitConfigFile $cloudbaseInitUnattendConfigFile
 
     Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "metadata_services" -Value "cloudbaseinit.metadata.services.configdrive.ConfigDriveService,cloudbaseinit.metadata.services.httpservice.HttpService,cloudbaseinit.metadata.services.ec2service.EC2Service,cloudbaseinit.metadata.services.maasservice.MaaSHttpService"
@@ -102,13 +101,6 @@ try
     Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "stop_service_on_exit" -Value $false
     Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "check_latest_version" -Value $false
     Set-IniFileValue -Path $cloudbaseInitUnattendConfigFile -Key "logfile" -Value "cloudbase-init-unattend.log"
-
-    copy -Force (Join-Path $PSScriptRoot "SetupComplete.cmd") $setupScriptsDir
-    copy -Force (Join-Path $PSScriptRoot "PostInstall.ps1") $setupScriptsDir
-}
-finally
-{
-    Dismount-DiskImage $VHDPath
 }
 
 Write-Host

@@ -14,6 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 #>
 
+param(
+    [switch]$CreateService = $True
+)
+
 # Import required PowerShell modules
 import-module Microsoft.PowerShell.Management
 import-module Microsoft.PowerShell.Utility
@@ -22,11 +26,9 @@ $cloudbaseInitBaseDir = "$Env:SystemDrive\Cloudbase-Init"
 $cloudbaseInitConfigDir = Join-Path $cloudbaseInitBaseDir "conf"
 $cloudbaseInitLogDir = Join-Path $cloudbaseInitBaseDir "Log"
 $cloudbaseInitBinDir = Join-Path $cloudbaseInitBaseDir "Bin"
-$cloudbaseInitServiceWrapper = Join-Path $cloudbaseInitBinDir "OpenStackService.exe"
 $cloudbaseInitPythonDir = Join-Path $cloudbaseInitBaseDir "Python"
 $cloudbaseInitPythonScriptsDir = Join-Path $cloudbaseInitPythonDir "Scripts"
 $cloudbaseInitConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init.conf"
-$cloudbaseInitUnattendConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init-unattend.conf"
 $pythonExePath = Join-Path $cloudbaseInitPythonDir "python.exe"
 $cloudbaseInitExePath = Join-Path $cloudbaseInitPythonScriptsDir "cloudbase-init.exe"
 
@@ -44,16 +46,19 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Create cloudbase-init service
-& sc.exe create "cloudbase-init" binPath= "\""${cloudbaseInitServiceWrapper} \"" cloudbase-init \""${cloudbaseInitExePath}\"" --config-file \""${cloudbaseInitConfigFile}\""" DisplayName= "Cloudbase-Init" start= auto
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to create cloudbase-init service"
-    exit 1
+if ($CreateService) {
+    $cloudbaseInitServiceWrapper = Join-Path $cloudbaseInitBinDir "OpenStackService.exe"
+    # Create cloudbase-init service
+    & sc.exe create "cloudbase-init" binPath= "\""${cloudbaseInitServiceWrapper} \"" cloudbase-init \""${cloudbaseInitExePath}\"" --config-file \""${cloudbaseInitConfigFile}\""" DisplayName= "Cloudbase-Init" start= auto
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to create cloudbase-init service"
+        exit 1
+    }
+    $cloudbaseInitConfigFile = Join-Path $cloudbaseInitConfigDir "cloudbase-init-unattend.conf"
 }
-
-# Run cloudbase-init with "unattend" configuration
-& $cloudbaseInitExePath --config-file $cloudbaseInitUnattendConfigFile
+# Run cloudbase-init
+& $cloudbaseInitExePath --config-file $cloudbaseInitConfigFile
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to run cloudbase-init unattend"
+    Write-Error "Failed to run cloudbase-init"
     exit 1
 }
