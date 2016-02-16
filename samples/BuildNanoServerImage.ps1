@@ -9,7 +9,7 @@ if(Test-Path $targetPath)
     del $targetPath
 }
 
-.\NewNanoServerImage.ps1 -IsoPath $isoPath -TargetPath $targetPath `
+..\NewNanoServerImage.ps1 -IsoPath $isoPath -TargetPath $targetPath `
 -AdministratorPassword $password -Platform "Hyper-V" `
 -Compute -Storage -Clustering `
 -ExtraDriversPaths C:\Dev\Drivers\NUC_2015_Intel_ndis64\ `

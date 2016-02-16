@@ -24,12 +24,17 @@ param(
     [string]$Arch = "amd64",
     [string]$Language = "en-us",
     [string[]]$ExtraDriversPaths = @(),
+    [switch]$AddVirtIODrivers,
+    [string]$VirtIODriversISOPath,
+    [switch]$AddCloudbaseInit = $true,
     [switch]$AddMaaSHooks,
     [string]$CloudbaseInitZipPath,
     [string]$LoggingCOMPort
 )
 
 $ErrorActionPreference = "Stop"
+
+Import-Module "${PSScriptRoot}\Common.psm1"
 
 $packages = @("WinPE-WMI", "WinPE-NetFx",  "WinPE-PowerShell", "WinPE-Scripting", "WinPE-DismCmdlets")
 
@@ -38,25 +43,18 @@ if(Test-Path $WinPEDir)
     throw "WinPE directory already exists: $WinPEDir"
 }
 
-function SetADKVars($ADKRoot)
-{
-    pushd "${ADKRoot}\Deployment Tools"
-    try
-    {
-        cmd /c "DandISetEnv.bat&set" |
-        foreach {
-          if ($_ -match "=") {
-            $v = $_.split("="); set-item -force -path "ENV:\$($v[0])"  -value "$($v[1])"
-          }
-        }
-    }
-    finally
-    {
-        popd
-    }
-}
+SetADKVars $ADKRoot | Out-Null
 
-SetADKVars $ADKRoot
+if($AddVirtIODrivers)
+{
+    if(!$VirtIODriversISOPath)
+    {
+        $VirtIODriversISOPath = DownloadVirtIODriversISO $env:TEMP
+    }
+
+    $driversBasePath = MountISO $VirtIODriversISOPath
+    $ExtraDriversPaths += GetVirtIODriverPaths $driversBasePath $Arch
+}
 
 & copype.cmd $Arch $WinPEDir | Out-Null
 if($LASTEXITCODE) { throw "copype.cmd failed" }
@@ -67,12 +65,21 @@ if($LASTEXITCODE) { throw "Dism /Mount-Image failed" }
 
 try
 {
-    if ($CloudbaseInitZipPath)
+    if ($AddCloudbaseInit)
     {
+        if($CloudbaseInitZipPath)
+        {
+            $zipPath = $CloudbaseInitZipPath
+        }
+        else
+        {
+            $zipPath = DownloadCloudbaseInit $env:TEMP $Arch
+        }
+
         . "${PSScriptRoot}\CloudbaseInitOfflineSetup.ps1" `
         -CloudbaseInitBaseDir "${mountDir}\Cloudbase-Init" `
         -CloudbaseInitRuntimeBaseDir "X:\Cloudbase-Init" `
-        -CloudbaseInitZipPath $CloudbaseInitZipPath `
+        -CloudbaseInitZipPath $zipPath `
         -LoggingCOMPort $LoggingCOMPort `
         -IsWinPE:$True
 
@@ -80,6 +87,11 @@ try
         copy "${PSScriptRoot}\PostInstall.ps1" $startnetDir
         Add-Content -Path "${startnetDir}\Startnet.cmd" `
         -Value "powershell.exe -ExecutionPolicy RemoteSigned %SYSTEMROOT%\System32\PostInstall.ps1 -CreateService:`$False"
+
+        if(!$CloudbaseInitZipPath)
+        {
+            del $zipPath
+        }
     }
 
     if($AddMaaSHooks)
@@ -105,15 +117,21 @@ try
         if($LASTEXITCODE) { throw "Dism /Add-Driver failed for $driverPath" }
     }
 }
- finally
+finally
 {
     & dism.exe /Unmount-Image /MountDir:$mountDir /Commit
     if($LASTEXITCODE) { throw "Dism /Unmount-Image failed" }
 }
 
+if($AddVirtIODrivers)
+{
+    # TODO: delete downloaded ISO
+    Dismount-DiskImage $VirtIODriversISOPath
+}
+
 try
 {
-    & MakeWinPEMedia.cmd /ISO $WinPEDir $WinPEISOPath
+    & MakeWinPEMedia.cmd /ISO /f $WinPEDir $WinPEISOPath
     if($LASTEXITCODE) { throw "MakeWinPEMedia failed" }
 }
 finally
