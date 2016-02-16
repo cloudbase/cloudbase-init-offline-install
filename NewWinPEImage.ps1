@@ -24,6 +24,7 @@ param(
     [string]$Arch = "amd64",
     [string]$Language = "en-us",
     [string[]]$ExtraDriversPaths = @(),
+    [switch]$AddMaaSHooks,
     [string]$CloudbaseInitZipPath,
     [string]$LoggingCOMPort
 )
@@ -81,6 +82,11 @@ try
         -Value "powershell.exe -ExecutionPolicy RemoteSigned %SYSTEMROOT%\System32\PostInstall.ps1 -CreateService:`$False"
     }
 
+    if($AddMaaSHooks)
+    {
+        copy -Recurse "${PSScriptRoot}\windows-curtin-hooks\curtin" "${mountDir}\curtin"
+    }
+
     $packageBasePath = "${ADKRoot}\Windows Preinstallation Environment\${Arch}\WinPE_OCs"
     foreach ($package in $packages)
     {
@@ -105,6 +111,14 @@ try
     if($LASTEXITCODE) { throw "Dism /Unmount-Image failed" }
 }
 
-& MakeWinPEMedia.cmd /ISO $WinPEDir $WinPEISOPath
+try
+{
+    & MakeWinPEMedia.cmd /ISO $WinPEDir $WinPEISOPath
+    if($LASTEXITCODE) { throw "MakeWinPEMedia failed" }
+}
+finally
+{
+    del -Recurse -Force $WinPEDir
+}
 
 Write-Host "WinPE image ready: $WinPEISOPath"
