@@ -81,9 +81,9 @@ else
 }
 
 # Note: KVM supports some Hyper-V enlightenments.
-$addGuestDrivers = (@("Hyper-V", "KVM") -contains $Platform)
-# Note: VMWare can work w/o OEMDrivers, except for the keyboard
-$addOEMDrivers = (@("Hyper-V", "KVM") -notcontains $Platform)
+# Note: VMWare can work w/o Guest or OEM drivers, except for the keyboard
+$addGuestDrivers = (@("Hyper-V", "KVM", "VMware") -contains $Platform)
+$addOEMDrivers = (@("Hyper-V", "KVM", "VMware") -notcontains $Platform)
 
 $isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
 $isoNanoServerPath = "${isoMountDrive}:\NanoServer"
