@@ -28,6 +28,7 @@ param(
     [string]$VirtIODriversISOPath,
     [switch]$AddCloudbaseInit = $true,
     [switch]$AddMaaSHooks,
+    [string[][]]$AdditionalContent = @(),
     [string]$CloudbaseInitZipPath,
     [string]$LoggingCOMPort
 )
@@ -115,6 +116,19 @@ try
     {
         & dism.exe /Add-Driver /Image:$mountDir /Driver:$driverPath /Recurse
         if($LASTEXITCODE) { throw "Dism /Add-Driver failed for $driverPath" }
+    }
+
+    foreach($content in $AdditionalContent)
+    {
+        $src = $content[0]
+        $dest = Join-Path $mountDir $content[1]
+
+        if(!(Test-Path $dest))
+        {
+            mkdir $dest
+        }
+
+        copy -Recurse -Force $src $dest
     }
 }
 finally
