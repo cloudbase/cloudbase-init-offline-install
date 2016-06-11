@@ -88,11 +88,6 @@ else
 $addGuestDrivers = (@("Hyper-V", "KVM", "VMware") -contains $Platform)
 $addOEMDrivers = (@("Hyper-V", "KVM", "VMware") -notcontains $Platform)
 
-$deploymentType = "Host"
-if ($addGuestDrivers) {
-   $deploymentType = "Guest"
-}
-
 $isoMountDrive = (Mount-DiskImage $IsoPath -PassThru | Get-Volume).DriveLetter
 $isoNanoServerPath = "${isoMountDrive}:\NanoServer"
 
@@ -101,9 +96,8 @@ try
     Import-Module "${isoNanoServerPath}\NanoServerImageGenerator\NanoServerImageGenerator.psm1"
     New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
     -MaxSize $MaxSize -AdministratorPassword $AdministratorPassword -TargetPath $vhdPath `
-    -DeploymentType $DeploymentType -OEMDrivers:$addOEMDrivers `
-    -Compute:$Compute -Storage:$Storage -Clustering:$Clustering `
-    -Containers:$Containers -Packages $Packages -Edition $ServerEdition
+    -OEMDrivers:$addOEMDrivers -Compute:$Compute -Storage:$Storage -Clustering:$Clustering `
+    -Containers:$Containers -Packages $Packages
 }
 finally
 {
