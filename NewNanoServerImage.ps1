@@ -44,7 +44,6 @@ Param(
     [string]$CloudbaseInitZipPath,
     [string]$CloudbaseInitCOMPort = "COM1",
     [Parameter(Mandatory=$False)]
-    [string]$ServerEdition = "Standard" # ["Standard" | "Datacenter"]
 )
 
 $ErrorActionPreference = "Stop"
