@@ -92,7 +92,7 @@ $isoNanoServerPath = "${isoMountDrive}:\NanoServer"
 
 try
 {
-    Import-Module "${isoNanoServerPath}\NanoServerImageGenerator\NanoServerImageGenerator.psm1"
+    Import-Module "${isoNanoServerPath}\NanoServerImageGenerator.psm1"
     New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
     -MaxSize $MaxSize -AdministratorPassword $AdministratorPassword -TargetPath $vhdPath `
     -OEMDrivers:$addOEMDrivers -Compute:$Compute -Storage:$Storage -Clustering:$Clustering `
