@@ -164,7 +164,7 @@ if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks -or $AddCloudbaseI
 
         foreach($driverPath in $ExtraDriversPaths)
         {
-            & $dismPath /Add-Driver /image:$mountDir /driver:$driverPath /Recurse
+            & $dismPath /Add-Driver /image:$mountDir /driver:$driverPath /Recurse /ForceUnsigned
             if($lastexitcode) { throw "dism /Add-Driver failed for path: $driverPath"}
         }
 
@@ -266,7 +266,7 @@ if ($vhdPath -ne $TargetPath)
         $imagePath = $TargetPath
     }
 
-    echo "Converting disk image to target image format: $imageFormat"
+    echo "Converting disk image to target image format: $diskFormat"
     if(@("vhd", "vhdx") -contains $diskFormat)
     {
         Convert-VHD -Path $vhdPath -DestinationPath $imagePath
