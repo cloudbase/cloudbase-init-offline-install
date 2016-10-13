@@ -103,7 +103,7 @@ try
     -MaxSize $MaxSize -AdministratorPassword $AdministratorPassword -TargetPath $vhdPath `
     -DeploymentType $DeploymentType -OEMDrivers:$addOEMDrivers `
     -Compute:$Compute -Storage:$Storage -Clustering:$Clustering `
-    -Containers:$Containers -Packages $Packages -Edition $ServerEdition
+    -Containers:$Containers -Package $Packages -Edition $ServerEdition
 }
 finally
 {
