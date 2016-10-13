@@ -143,7 +143,7 @@ if($Storage)
 
 if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks -or $AddCloudbaseInit)
 {
-    $dismPath = Join-Path $NanoServerDir "Tools\dism.exe"
+    $dismPath = $(Get-Command dism | select Source -ExpandProperty Source)
     $mountDir = Join-Path $NanoServerDir "MountDir"
 
     if(!(Test-Path $mountDir))
