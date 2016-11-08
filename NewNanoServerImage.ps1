@@ -99,11 +99,23 @@ $isoNanoServerPath = "${isoMountDrive}:\NanoServer"
 try
 {
     Import-Module "${isoNanoServerPath}\NanoServerImageGenerator\NanoServerImageGenerator.psm1"
-    New-NanoServerImage -MediaPath "${isoMountDrive}:\" -BasePath $NanoServerDir `
-    -MaxSize $MaxSize -AdministratorPassword $AdministratorPassword -TargetPath $vhdPath `
-    -DeploymentType $DeploymentType -OEMDrivers:$addOEMDrivers `
-    -Compute:$Compute -Storage:$Storage -Clustering:$Clustering `
-    -Containers:$Containers -Packages $Packages -Edition $ServerEdition
+    $imageArgs = @{"MediaPath" = "${isoMountDrive}:\";
+                   "BasePath" = $NanoServerDir;
+                   "MaxSize" = $MaxSize;
+                   "AdministratorPassword" = $AdministratorPassword;
+                   "TargetPath" = $vhdPath;
+                   "DeploymentType" = $DeploymentType;
+                   "OEMDrivers" = $addOEMDrivers;
+                   "Compute" = $Compute;
+                   "Storage" = $Storage;
+                   "Clustering" = $Clustering;
+                   "Containers"= $Containers;
+                   "Edition" = $ServerEdition;
+                   }
+    if ($Packages) {
+        $imageArgs.Add("Package", $Packages)
+    }
+    New-NanoServerImage @imageArgs
 }
 finally
 {
@@ -143,7 +155,9 @@ if($Storage)
 
 if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks -or $AddCloudbaseInit)
 {
-    $dismPath = Join-Path $NanoServerDir "Tools\dism.exe"
+    # Note(avladu): The ISO comes with nano generation scripts that use
+    # the same path for dism.
+    $dismPath = "dism.exe"
     $mountDir = Join-Path $NanoServerDir "MountDir"
 
     if(!(Test-Path $mountDir))
