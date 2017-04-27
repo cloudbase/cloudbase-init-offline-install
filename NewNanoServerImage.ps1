@@ -207,10 +207,15 @@ if($ExtraDriversPaths -or $featuresToEnable -or $AddMaaSHooks -or $AddCloudbaseI
                 $d = mkdir $setupScriptsDir
             }
 
+            if ($CloudbaseInitCOMPort) {
+                Write-Warning ("Cloudbase-Init logging COM Port cannot be set to $CloudbaseInitCOMPort," + `
+		               " as Nano Server does not support serial ports.")
+            }
+
             . "${PSScriptRoot}\CloudbaseInitOfflineSetup.ps1" -CloudbaseInitBaseDir $cloudbaseInitBaseDir `
             -CloudbaseInitRuntimeBaseDir $cloudbaseInitRuntimeBaseDir `
             -CloudbaseInitZipPath $zipPath `
-            -LoggingCOMPort $CloudbaseInitCOMPort
+            -LoggingCOMPort $null
 
             copy -Force (Join-Path $PSScriptRoot "SetupComplete.cmd") $setupScriptsDir
             copy -Force (Join-Path $PSScriptRoot "PostInstall.ps1") $setupScriptsDir
